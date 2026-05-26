@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agendar Cita — Citum</title>
+  
+  <link rel="stylesheet" href="/styles/booking.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body data-theme="dark">
+
+  <div class="booking-layout">
+    
+    <!-- Top Booking Header -->
+    <header class="booking-header" id="booking-header">
+      <div class="booking-header-container">
+        <div class="header-business-info">
+          <div class="business-logo">B</div>
+          <div>
+            <h1 class="business-title" id="booking-biz-title">Barbería Imperial</h1>
+            <p class="business-subtitle" id="booking-biz-address">Calle 72 #10-15, Bogotá</p>
+          </div>
+        </div>
+        <a href="/index.html" class="exit-booking-btn" id="btn-exit-booking" title="Volver al inicio">
+          <i data-lucide="x" size="20"></i>
+        </a>
+      </div>
+    </header>
+
+    <!-- Stepper Progress Tracker -->
+    <div class="booking-stepper" id="booking-progress-stepper">
+      <div class="stepper-container">
+        <div class="step-indicator active" id="step-1-indicator">
+          <span class="step-number">1</span>
+          <span class="step-label">Servicios</span>
+        </div>
+        <div class="step-connector" id="connector-1"></div>
+        <div class="step-indicator" id="step-2-indicator">
+          <span class="step-number">2</span>
+          <span class="step-label">Fecha y Hora</span>
+        </div>
+        <div class="step-connector" id="connector-2"></div>
+        <div class="step-indicator" id="step-3-indicator">
+          <span class="step-number">3</span>
+          <span class="step-label">Confirmación</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dynamic Flow Container -->
+    <main class="booking-main" id="booking-flow-container">
+      <div class="booking-loading-placeholder">
+        <i data-lucide="loader" class="loader-icon anim-spin"></i>
+        <h3>Cargando catálogo de servicios...</h3>
+      </div>
+    </main>
+
+  </div>
+
+  <!-- Entrypoint Public Scheduling Router -->
+  <script type="module" src="/src/booking.js"></script>
+</body>
+</html>

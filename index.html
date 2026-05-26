@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Citum — Gestión de Reservas, Agenda y POS para Barberías y Salones</title>
+  
+  <!-- SEO Meta Tags -->
+  <meta name="description" content="Gestiona tu barbería o salón de belleza con Citum. Agenda inteligente, portal de agendamiento público para tus clientes, facturación y POS express, y gestión multi-negocio todo en una plataforma premium.">
+  <meta name="keywords" content="agenda barberia, software salon de belleza, reservas online, POS barberia, facturacion salon de belleza, citum, agendamiento citas, saas barberias">
+  <meta name="author" content="Citum Software">
+  
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Citum — Gestión de Reservas, Agenda y POS para Barberías y Salones">
+  <meta property="og:description" content="Lleva tu negocio de servicios al siguiente nivel. Agenda inteligente, portal público de reservas 24/7 y facturación express.">
+  <meta property="og:image" content="https://citum.app/og-image.jpg">
+
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="/styles/landing.css">
+  
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="landing-body">
+
+  <!-- Navbar -->
+  <header class="navbar" id="navbar">
+    <div class="container">
+      <a href="#" class="logo" id="nav-logo">
+        <span class="logo-icon"></span>
+        Citum
+      </a>
+      <nav>
+        <ul class="nav-links">
+          <li><a href="#features" class="nav-link" id="link-features">Características</a></li>
+          <li><a href="#pricing" class="nav-link" id="link-pricing">Planes</a></li>
+          <li><a href="#faq" class="nav-link" id="link-faq">Preguntas Frecuentes</a></li>
+        </ul>
+      </nav>
+      <div class="nav-actions">
+        <a href="/login.html" class="btn btn-secondary" id="btn-login-nav">Iniciar Sesión</a>
+        <a href="/login.html" class="btn btn-primary" id="btn-register-nav">Empezar Gratis</a>
+        <button class="menu-btn" id="mobile-menu-toggle" aria-label="Abrir menú de navegación">
+          <span class="menu-line"></span>
+          <span class="menu-line"></span>
+          <span class="menu-line"></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Mobile Navigation Overlay -->
+  <div class="mobile-nav" id="mobile-nav-overlay">
+    <ul class="mobile-nav-list">
+      <li><a href="#features" class="mobile-nav-link" id="mobile-link-features">Características</a></li>
+      <li><a href="#pricing" class="mobile-nav-link" id="mobile-link-pricing">Planes</a></li>
+      <li><a href="#faq" class="mobile-nav-link" id="mobile-link-faq">Preguntas Frecuentes</a></li>
+      <li><hr style="border: 0; border-top: 1px solid var(--border-soft); width: 80px; margin-block: var(--space-4);"></li>
+      <li><a href="/login.html" class="btn btn-secondary" style="width: 200px;" id="mobile-btn-login">Iniciar Sesión</a></li>
+      <li><a href="/login.html" class="btn btn-primary" style="width: 200px;" id="mobile-btn-register">Empezar Gratis</a></li>
+    </ul>
+  </div>
+
+  <!-- Hero Section -->
+  <section class="hero" id="hero">
+    <div class="hero-grid-bg"></div>
+    <div class="container">
+      <div class="hero-tag" id="hero-feature-tag">
+        <span class="hero-tag-glow"></span>
+        NUEVA ERA DE GESTIÓN
+      </div>
+      <h1 class="hero-title" id="hero-main-title">
+        Gestiona tu negocio de servicios como en el <span class="text-gradient">futuro</span>
+      </h1>
+      <p class="hero-subtitle" id="hero-main-desc">
+        Citum es el SaaS de agendamiento, administración y POS diseñado para barberías y salones que buscan una experiencia premium, rápida y escalable.
+      </p>
+      <div class="hero-actions">
+        <a href="/login.html" class="btn btn-lg btn-primary" id="hero-cta-primary">Crear Cuenta Gratis</a>
+        <a href="/booking.html" class="btn btn-lg btn-secondary" id="hero-cta-secondary">
+          <i data-lucide="eye" style="margin-right: 8px;"></i>
+          Ver Demo Pública
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section class="section" id="features">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-tag" id="features-tag">BENEFICIOS CLAVE</span>
+        <h2 class="section-title" id="features-title">Todo lo que necesitas para crecer</h2>
+        <p class="section-subtitle" id="features-desc">Olvídate de las agendas de papel y de los sistemas lentos. Citum es modular, rápido y va contigo a todas partes.</p>
+      </div>
+      
+      <div class="grid grid-2" id="features-grid">
+        <!-- Feature 1 -->
+        <div class="card" id="feat-agenda">
+          <div class="icon-container">
+            <i data-lucide="calendar"></i>
+          </div>
+          <h3 class="card-title">Agenda Multi-Profesional</h3>
+          <p class="card-description">
+            Organiza agendas cruzadas para todos tus profesionales. Controla turnos, bloquea descansos y evita solapamientos de citas en tiempo real.
+          </p>
+        </div>
+        
+        <!-- Feature 2 -->
+        <div class="card" id="feat-booking">
+          <div class="icon-container">
+            <i data-lucide="link"></i>
+          </div>
+          <h3 class="card-title">Portal de Reservas Público</h3>
+          <p class="card-description">
+            Tu negocio abierto 24/7. Tus clientes eligen sus servicios favoritos, profesional y horario desde una URL personalizada <code>citum.app/b/tu-negocio</code>.
+          </p>
+        </div>
+        
+        <!-- Feature 3 -->
+        <div class="card" id="feat-pos">
+          <div class="icon-container">
+            <i data-lucide="receipt"></i>
+          </div>
+          <h3 class="card-title">POS & Facturación Express</h3>
+          <p class="card-description">
+            Crea facturas de cobro al instante. Genera tickets térmicos en formato PDF para tus clientes y órdenes de servicio limpias para tus profesionales.
+          </p>
+        </div>
+        
+        <!-- Feature 4 -->
+        <div class="card" id="feat-multibusiness">
+          <div class="icon-container">
+            <i data-lucide="layers"></i>
+          </div>
+          <h3 class="card-title">Gestión Multi-Negocio</h3>
+          <p class="card-description">
+            ¿Tienes una barbería y una peluquería? Contrólalo todo bajo una misma cuenta. Alterna entre sucursales de forma fluida y centralizada.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pricing Section -->
+  <section class="section" id="pricing">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-tag" id="pricing-tag">PRECIOS TRANSPARENTES</span>
+        <h2 class="section-title" id="pricing-title">Un plan para cada tamaño</h2>
+        <p class="section-subtitle" id="pricing-desc">Comienza gratis hoy mismo y escala a medida que tu equipo de profesionales crece.</p>
+      </div>
+
+      <!-- Monthly/Yearly Toggle -->
+      <div class="pricing-toggle-container" id="pricing-billing-toggle">
+        <span class="pricing-toggle-label active" id="label-monthly">Mensual</span>
+        <div class="toggle-switch" id="billing-switch" role="button" aria-label="Cambiar entre pago mensual y anual"></div>
+        <span class="pricing-toggle-label" id="label-yearly">Anual</span>
+        <span class="badge-discount" id="yearly-discount-tag">Ahorra 20%</span>
+      </div>
+
+      <div class="grid grid-3 pricing-grid" id="pricing-cards-container">
+        <!-- Plan 1: Esencial -->
+        <div class="card pricing-card" id="plan-esencial">
+          <span class="pricing-plan-name">Esencial</span>
+          <div class="pricing-price-container">
+            <span class="pricing-currency">$</span>
+            <span class="pricing-amount" id="price-esencial">0</span>
+            <span class="pricing-period" id="period-esencial">/ mes</span>
+          </div>
+          <ul class="pricing-features-list">
+            <li class="pricing-feature-item">
+              <span class="pricing-feature-icon"><i data-lucide="check" size="16"></i></span>
+              1 Negocio / Sucursal
+            </li>
+            <li class="pricing-feature-item">
+              <span class="pricing-feature-icon"><i data-lucide="check" size="16"></i></span>
+              Hasta 3 Profesionales
+            </li>
+            <li class="pricing-feature-item">
+              <span class="pricing-feature-icon"><i data-lucide="check" size="16"></i></span>
+              Agenda Digital básica
+            </li>
+            <li class="pricing-feature-item">
+              <span class="pricing-feature-icon"><i data-lucide="check" size="16"></i></span>
+              Reservas públicas 24/7
+            </li>
+            <li class="pricing-feature-item disabled">
+              <span class="pricing-feature-icon"><i data-lucide="x" size="16"></i></span>
+              Facturación & POS
+            </li>
+            <li class="pricing-feature-item disabled">
+              <span class="pricing-feature-icon"><i data-lucide="x" size="16"></i></span>
+              Reportes avanzados
+            </li>
+          </ul>
+          <a href="/login.html" class="btn btn-secondary pricing-cta" id="cta-plan-esencial">Empezar Gratis</a>
+        </div>
+
+        <!-- Plan 2: Pro -->
+        <div class="card pricing-card popular" id="plan-pro">
+          <span class="pricing-plan-name">Pro</span>
+          <div class="pricing-price-container">
+            <span class="pricing-currency">COP $</span>
+            <span class="pricing-amount" id="price-pro" data-monthly="49.000" data-yearly="39.000">49.000</span>
+            <span class="pricing-period" id="period-pro">/ mes</span>
+          </div>
+          <ul class="pricing-features-list">
+            <li class="pricing-feature-item">
+              <span class="pricing-feature-icon"><i data-lucide="check" size="16"></i></span>
+              Hasta 3 Negocios
+            </li>
+            <li class="pricing-feature-item">
+              <span class="pricing-feature-icon"><i data-lucide="check" size="16"></i></span>
+              Hasta 10 Profesionales
+            </li>
+            <li class="pricing-feature-item">
+              <span class="pricing-feature-icon"><i data-lucide="check" size="16"></i></span>
+              Agenda Multi-Profesional
+            </li>
+            <li class="pricing-feature-item">
+              <span class="pricing-feature-icon"><i data-lucide="check" size="16"></i></span>
+              Reservas públicas 24/7
+            </li>
+            <li class="pricing-feature-item">
+              <span class="pricing-feature-icon"><i data-lucide="check" size="16"></i></span>
+              Facturación, POS y PDF
+            </li>
+            <li class="pricing-feature-item">
+              <span class="pricing-feature-icon"><i data-lucide="check" size="16"></i></span>
+              Reportes de ventas
+            </li>
+          </ul>
+          <a href="/login.html" class="btn btn-primary pricing-cta" id="cta-plan-pro">Elegir Pro</a>
+        </div>
+
+        <!-- Plan 3: Max -->
+        <div class="card pricing-card" id="plan-max">
+          <span class="pricing-plan-name">Max</span>
+          <div class="pricing-price-container">
+            <span class="pricing-currency">COP $</span>
+            <span class="pricing-amount" id="price-max" data-monthly="99.000" data-yearly="79.000">99.000</span>
+            <span class="pricing-period" id="period-max">/ mes</span>
+          </div>
+          <ul class="pricing-features-list">
+            <li class="pricing-feature-item">
+              <span class="pricing-feature-icon"><i data-lucide="check" size="16"></i></span>
+              Negocios Ilimitados
+            </li>
+            <li class="pricing-feature-item">
+              <span class="pricing-feature-icon"><i data-lucide="check" size="16"></i></span>
+              Profesionales Ilimitados
+            </li>
+            <li class="pricing-feature-item">
+              <span class="pricing-feature-icon"><i data-lucide="check" size="16"></i></span>
+              Agenda Multi-Profesional
+            </li>
+            <li class="pricing-feature-item">
+              <span class="pricing-feature-icon"><i data-lucide="check" size="16"></i></span>
+              Reservas públicas 24/7
+            </li>
+            <li class="pricing-feature-item">
+              <span class="pricing-feature-icon"><i data-lucide="check" size="16"></i></span>
+              Facturación & POS Ilimitado
+            </li>
+            <li class="pricing-feature-item">
+              <span class="pricing-feature-icon"><i data-lucide="check" size="16"></i></span>
+              Reportes avanzados + Exportar
+            </li>
+          </ul>
+          <a href="/login.html" class="btn btn-secondary pricing-cta" id="cta-plan-max">Elegir Max</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ Section -->
+  <section class="section" id="faq">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-tag" id="faq-tag">RESOLVEMOS TUS DUDAS</span>
+        <h2 class="section-title" id="faq-title">Preguntas Frecuentes</h2>
+        <p class="section-subtitle" id="faq-desc">¿Tienes preguntas sobre Citum? Aquí respondemos las más comunes.</p>
+      </div>
+
+      <div class="faq-list" id="faq-accordion-list">
+        <!-- FAQ 1 -->
+        <div class="faq-item" id="faq-1">
+          <button class="faq-question-btn" id="faq-btn-1">
+            ¿Necesito una tarjeta de crédito para registrarme?
+            <span class="faq-icon-wrapper"><i data-lucide="plus" size="20"></i></span>
+          </button>
+          <div class="faq-answer" id="faq-ans-1">
+            <div class="faq-answer-inner">
+              No. El registro para el Plan Esencial es 100% gratuito y no requiere ingresar ningún método de pago. Puedes usarlo de forma gratuita para siempre con hasta 3 profesionales.
+            </div>
+          </div>
+        </div>
+
+        <!-- FAQ 2 -->
+        <div class="faq-item" id="faq-2">
+          <button class="faq-question-btn" id="faq-btn-2">
+            ¿Puedo gestionar múltiples locales o sucursales?
+            <span class="faq-icon-wrapper"><i data-lucide="plus" size="20"></i></span>
+          </button>
+          <div class="faq-answer" id="faq-ans-2">
+            <div class="faq-answer-inner">
+              Sí. A partir del Plan Pro puedes configurar hasta 3 negocios o sucursales independientes en la misma cuenta de propietario. Si necesitas más o tienes una cadena grande, el Plan Max ofrece sucursales ilimitadas.
+            </div>
+          </div>
+        </div>
+
+        <!-- FAQ 3 -->
+        <div class="faq-item" id="faq-3">
+          <button class="faq-question-btn" id="faq-btn-3">
+            ¿Cómo reservan citas mis clientes finales?
+            <span class="faq-icon-wrapper"><i data-lucide="plus" size="20"></i></span>
+          </button>
+          <div class="faq-answer" id="faq-ans-3">
+            <div class="faq-answer-inner">
+              Cada negocio tiene un enlace público exclusivo (ej. <code>citum.app/b/tu-barberia</code>). Puedes compartir este enlace en tus redes sociales (Instagram, WhatsApp, Facebook). Los clientes entran, seleccionan sus servicios, el profesional de su preferencia, ven los horarios libres calculados en tiempo real y confirman su cita al instante.
+            </div>
+          </div>
+        </div>
+
+        <!-- FAQ 4 -->
+        <div class="faq-item" id="faq-4">
+          <button class="faq-question-btn" id="faq-btn-4">
+            ¿El sistema me permite imprimir tickets o recibos?
+            <span class="faq-icon-wrapper"><i data-lucide="plus" size="20"></i></span>
+          </button>
+          <div class="faq-answer" id="faq-ans-4">
+            <div class="faq-answer-inner">
+              Sí. Desde el panel puedes facturar cualquier cita o venta directa. Citum genera tickets de cobro en formato vertical (optimizados para impresoras térmicas de 58mm u 80mm) y tickets de servicio para que tus profesionales sepan qué servicios deben realizar sin ver los precios de cobro.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Banner Callout -->
+  <section class="container" id="cta-banner-section">
+    <div class="cta-banner" id="landing-cta-banner">
+      <div class="cta-banner-content">
+        <h2 class="cta-banner-title" id="banner-title">Moderniza tu negocio hoy</h2>
+        <p class="cta-banner-desc" id="banner-desc">Únete a cientos de barberías y salones de belleza que ya están automatizando sus reservas con Citum.</p>
+        <a href="/login.html" class="btn btn-lg btn-white" id="banner-cta-btn">Registrarme Ahora</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer" id="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <a href="#" class="logo" id="footer-logo">
+            <span class="logo-icon"></span>
+            Citum
+          </a>
+          <p class="footer-brand-desc">Plataforma premium de agendamiento digital, POS y gestión para negocios de servicios de belleza y barberías.</p>
+          <div class="footer-socials">
+            <a href="#" class="footer-social-link" aria-label="Facebook"><i data-lucide="facebook" size="18"></i></a>
+            <a href="#" class="footer-social-link" aria-label="Instagram"><i data-lucide="instagram" size="18"></i></a>
+            <a href="#" class="footer-social-link" aria-label="Twitter"><i data-lucide="twitter" size="18"></i></a>
+          </div>
+        </div>
+        
+        <div>
+          <h4 class="footer-col-title">Producto</h4>
+          <ul class="footer-links">
+            <li><a href="#features" class="footer-link">Características</a></li>
+            <li><a href="#pricing" class="footer-link">Precios y Planes</a></li>
+            <li><a href="/booking.html" class="footer-link">Demo de Reservas</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h4 class="footer-col-title">Soporte</h4>
+          <ul class="footer-links">
+            <li><a href="#" class="footer-link">Centro de Ayuda</a></li>
+            <li><a href="#" class="footer-link">Contacto</a></li>
+            <li><a href="#" class="footer-link">Estado del Servidor</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h4 class="footer-col-title">Compañía</h4>
+          <ul class="footer-links">
+            <li><a href="#" class="footer-link">Sobre Nosotros</a></li>
+            <li><a href="#" class="footer-link">Blog</a></li>
+            <li><a href="#" class="footer-link">Prensa</a></li>
+          </ul>
+        </div>
+      </div>
+      
+      <div class="footer-bottom">
+        <p class="footer-copyright">&copy; 2026 Citum. Todos los derechos reservados.</p>
+        <ul class="footer-legal-links">
+          <li><a href="#" class="footer-legal-link">Términos de Servicio</a></li>
+          <li><a href="#" class="footer-legal-link">Política de Privacidad</a></li>
+        </ul>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Script entrypoint -->
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

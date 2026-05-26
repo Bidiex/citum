@@ -1,0 +1,107 @@
+/* Base tokens que no cambian entre temas */
+:root {
+  /* Spacing */
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-24: 96px;
+  --space-32: 128px;
+
+  /* Border Radius */
+  --radius-xs:   8px;
+  --radius-sm:   12px;
+  --radius-md:   18px;
+  --radius-lg:   24px;
+  --radius-xl:   32px;
+  --radius-pill: 999px;
+
+  /* Typography */
+  --font-primary: 'DM Sans', sans-serif;
+  --text-xs:   13px;
+  --text-sm:   14px;
+  --text-base: 16px;
+  --text-lg:   18px;
+  --text-xl:   22px;
+  --text-2xl:  28px;
+  --text-3xl:  36px;
+  --text-4xl:  48px;
+  --text-5xl:  64px;
+
+  /* Motion */
+  --transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  
+  /* Gradientes Oficiales */
+  --grad-brand: linear-gradient(135deg, #6D3BFF 0%, #8C52FF 45%, #A855F7 100%);
+  --grad-glow: linear-gradient(180deg, rgba(140, 82, 255, 0.18), rgba(140, 82, 255, 0.05));
+  --grad-cta: linear-gradient(90deg, #6D3BFF, #8C52FF);
+
+  /* Breakpoints standard */
+  --bp-sm:  576px;
+  --bp-md:  768px;
+  --bp-lg:  1024px;
+  --bp-xl:  1280px;
+  --bp-2xl: 1536px;
+}
+
+/* Tema Oscuro (Por defecto o data-theme="dark") */
+:root, [data-theme="dark"] {
+  /* Backgrounds */
+  --bg-primary:    #0B0820;
+  --bg-secondary:  #131033;
+  --bg-card:       #211A4B;
+  --bg-card-hover: #2A2160;
+  --bg-elevated:   #31256E;
+
+  /* Accents */
+  --accent-purple: #8B5CFF;
+  --accent-violet: #A855F7;
+  --accent-blue:   #6D5DFE;
+  --accent-neon:   #B388FF;
+
+  /* Text */
+  --text-primary:   #F5F3FF;
+  --text-secondary: #B7B4D2;
+  --text-muted:     #8E8AAE;
+  --border-soft:    rgba(255, 255, 255, 0.08);
+
+  /* Shadows & Glow */
+  --shadow-card:    0 10px 30px rgba(0, 0, 0, 0.35);
+  --shadow-glow:    0 0 20px rgba(139, 92, 255, 0.35),
+                    0 0 60px rgba(139, 92, 255, 0.15);
+  --shadow-hover:   0 15px 45px rgba(0, 0, 0, 0.45),
+                    0 0 30px rgba(139, 92, 255, 0.25);
+}
+
+/* Tema Claro (data-theme="light") */
+[data-theme="light"] {
+  /* Backgrounds */
+  --bg-primary:    #F8F6FC;
+  --bg-secondary:  #F1EDFA;
+  --bg-card:       #FFFFFF;
+  --bg-card-hover: #FAF8FF;
+  --bg-elevated:   #EAE3F7;
+
+  /* Accents */
+  --accent-purple: #7B3FF2;
+  --accent-violet: #9333EA;
+  --accent-blue:   #4F46E5;
+  --accent-neon:   #6366F1;
+
+  /* Text */
+  --text-primary:   #181135;
+  --text-secondary: #5E5587;
+  --text-muted:     #8B82B5;
+  --border-soft:    rgba(24, 17, 53, 0.08);
+
+  /* Shadows & Glow */
+  --shadow-card:    0 10px 30px rgba(24, 17, 53, 0.06);
+  --shadow-glow:    0 0 20px rgba(139, 92, 255, 0.15),
+                    0 0 40px rgba(139, 92, 255, 0.08);
+  --shadow-hover:   0 15px 45px rgba(24, 17, 53, 0.12),
+                    0 0 30px rgba(139, 92, 255, 0.18);
+}

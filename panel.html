@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel de Propietario — Citum</title>
+  
+  <link rel="stylesheet" href="/styles/panel.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body data-theme="dark">
+
+  <div class="panel-layout" id="dashboard-layout">
+    
+    <!-- Sidebar -->
+    <aside class="panel-sidebar" id="panel-sidebar">
+      <div class="sidebar-brand">
+        <span class="logo-icon"></span>
+        <span class="brand-text">Citum</span>
+      </div>
+      
+      <nav class="sidebar-nav">
+        <ul class="sidebar-list">
+          <li>
+            <a href="#" class="sidebar-item active" data-section="agenda" id="nav-item-agenda">
+              <i data-lucide="calendar"></i>
+              <span class="nav-text">Agenda</span>
+            </a>
+          </li>
+          <li>
+            <a href="#" class="sidebar-item" data-section="profesionales" id="nav-item-profesionales">
+              <i data-lucide="users"></i>
+              <span class="nav-text">Profesionales</span>
+            </a>
+          </li>
+          <li>
+            <a href="#" class="sidebar-item" data-section="servicios" id="nav-item-servicios">
+              <i data-lucide="scissors"></i>
+              <span class="nav-text">Servicios</span>
+            </a>
+          </li>
+          <li>
+            <a href="#" class="sidebar-item" data-section="negocios" id="nav-item-negocios">
+              <i data-lucide="store"></i>
+              <span class="nav-text">Negocios</span>
+            </a>
+          </li>
+          <li>
+            <a href="#" class="sidebar-item" data-section="facturacion" id="nav-item-facturacion">
+              <i data-lucide="receipt"></i>
+              <span class="nav-text">Facturación</span>
+            </a>
+          </li>
+        </ul>
+      </nav>
+      
+      <div class="sidebar-footer">
+        <a href="/index.html" class="sidebar-item logout-btn" id="btn-logout">
+          <i data-lucide="log-out"></i>
+          <span class="nav-text">Cerrar Sesión</span>
+        </a>
+      </div>
+    </aside>
+
+    <!-- Main Section -->
+    <div class="panel-main">
+      
+      <!-- Header -->
+      <header class="panel-header" id="panel-header">
+        <div class="header-left">
+          <button class="toggle-sidebar-mobile" id="mobile-sidebar-toggle" aria-label="Alternar menú lateral">
+            <i data-lucide="menu"></i>
+          </button>
+          <h1 class="section-title-active" id="active-section-title">Agenda</h1>
+          
+          <!-- Multi-business selector -->
+          <div class="business-selector" id="business-selector-dropdown">
+            <button class="selector-btn" id="current-business-btn">
+              <i data-lucide="store" size="18"></i>
+              <span id="current-business-name">Barbería Imperial</span>
+              <i data-lucide="chevron-down" size="14"></i>
+            </button>
+            <div class="selector-dropdown-content" id="selector-options">
+              <a href="#" class="selector-option active" data-id="1">Barbería Imperial</a>
+              <a href="#" class="selector-option" data-id="2">Salón Deluxe</a>
+              <hr style="border:0; border-top: 1px solid var(--border-soft); margin-block: var(--space-2);">
+              <a href="#" class="selector-option add-new-business" data-section="negocios" style="color: var(--accent-neon);">
+                <i data-lucide="plus" size="14" style="margin-right: var(--space-2);"></i>
+                Agregar Negocio
+              </a>
+            </div>
+          </div>
+        </div>
+        
+        <div class="header-right">
+          <div class="profile-info">
+            <span class="profile-badge">Pro</span>
+            <div class="profile-avatar">
+              <i data-lucide="user" size="18"></i>
+            </div>
+            <span class="profile-name">Álvaro de Alba</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- Main Content Area -->
+      <main class="panel-content" id="main-content">
+        <!-- SPA views will load here. We will place a temporary loading/welcome placeholder. -->
+        <div class="dashboard-welcome">
+          <div class="welcome-box">
+            <i data-lucide="loader" class="loader-icon anim-spin"></i>
+            <h2>Cargando tu panel...</h2>
+            <p>Conectando con el módulo del panel en tiempo real.</p>
+          </div>
+        </div>
+      </main>
+
+    </div>
+  </div>
+
+  <!-- Entrypoint Router JavaScript -->
+  <script type="module" src="/src/panel.js"></script>
+</body>
+</html>
