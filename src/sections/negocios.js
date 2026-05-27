@@ -22,7 +22,7 @@ export function init(container) {
 
         <div class="grid-panel" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--space-4); margin-top: var(--space-4);">
           ${businesses.map(biz => `
-            <div class="card" style="padding: var(--space-6); background: var(--bg-card); border: 1px solid var(--border-soft); border-radius: var(--radius-lg); box-shadow: var(--shadow-card);">
+            <div class="card" style="padding: var(--space-6);">
               <div style="display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-4);">
                 <div style="
                   width: 40px; 

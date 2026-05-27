@@ -1,13 +1,20 @@
 // catalogo.js — Módulo del paso 1: Catálogo de Servicios
+import { getServices, getBusinesses } from '../utils/businessState.js';
 
 export function init(container, state, actions) {
-  // Lista de servicios de prueba
-  const mockServices = [
-    { id: 'srv-1', name: 'Corte de Cabello Premium', desc: 'Lavado, corte personalizado, asesoría de estilo y peinado con cera.', price: 35000, duration: 40 },
-    { id: 'srv-2', name: 'Afeitado de Barba Ritual', desc: 'Afeitado tradicional con toalla caliente, aceites esenciales y masaje facial.', price: 25000, duration: 30 },
-    { id: 'srv-3', name: 'Perfilado de Cejas', desc: 'Diseño y limpieza de cejas con cera e hilo.', price: 12000, duration: 15 },
-    { id: 'srv-4', name: 'Combo Imperial', desc: 'Corte de cabello + afeitado ritual + mascarilla facial hidratante.', price: 55000, duration: 75 }
-  ];
+  // Obtener negocio activo por slug de URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const bizSlug = urlParams.get('b');
+  const businesses = getBusinesses();
+  
+  let activeBiz = businesses[0]; // Fallback al primero
+  if (bizSlug) {
+    const found = businesses.find(b => b.slug === bizSlug);
+    if (found) activeBiz = found;
+  }
+
+  const bizId = activeBiz ? activeBiz.id : '';
+  const mockServices = getServices(bizId).filter(srv => srv.active !== false);
 
   // Renderizar la vista
   container.innerHTML = `

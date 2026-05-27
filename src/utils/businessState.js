@@ -287,3 +287,63 @@ export function removeClientAppointmentStats(appointment, businessId) {
   }
 }
 
+// === SERVICE MANAGEMENT ===
+
+const DEFAULT_SERVICES = [
+  { id: 'srv-1', name: 'Corte de Cabello Premium', desc: 'Lavado, corte personalizado, asesoría de estilo y peinado con cera.', price: 35000, duration: 40, active: true },
+  { id: 'srv-2', name: 'Afeitado de Barba Ritual', desc: 'Afeitado tradicional con toalla caliente, aceites esenciales y masaje facial.', price: 25000, duration: 30, active: true },
+  { id: 'srv-3', name: 'Perfilado de Cejas', desc: 'Diseño y limpieza de cejas con cera e hilo.', price: 12000, duration: 15, active: true },
+  { id: 'srv-4', name: 'Combo Imperial', desc: 'Corte de cabello + afeitado ritual + mascarilla facial hidratante.', price: 55000, duration: 75, active: true }
+];
+
+export function getServices(businessId) {
+  const bizId = businessId || getActiveBusinessId();
+  if (!bizId) return DEFAULT_SERVICES;
+  const key = `citum_services_${bizId}`;
+  const cached = localStorage.getItem(key);
+  if (!cached) {
+    localStorage.setItem(key, JSON.stringify(DEFAULT_SERVICES));
+    return DEFAULT_SERVICES;
+  }
+  return JSON.parse(cached);
+}
+
+export function saveServices(services, businessId) {
+  const bizId = businessId || getActiveBusinessId();
+  const key = `citum_services_${bizId}`;
+  localStorage.setItem(key, JSON.stringify(services));
+  window.dispatchEvent(new CustomEvent('citum_services_changed', { detail: { services, businessId: bizId } }));
+}
+
+export function addService(businessId, newService) {
+  const services = getServices(businessId);
+  const serviceWithId = {
+    ...newService,
+    id: 'srv-' + Date.now().toString()
+  };
+  services.push(serviceWithId);
+  saveServices(services, businessId);
+  return serviceWithId;
+}
+
+export function updateService(businessId, serviceId, updatedService) {
+  const services = getServices(businessId);
+  const index = services.findIndex(s => s.id === serviceId);
+  if (index !== -1) {
+    services[index] = {
+      ...services[index],
+      ...updatedService
+    };
+    saveServices(services, businessId);
+    return services[index];
+  }
+  return null;
+}
+
+export function deleteService(businessId, serviceId) {
+  const services = getServices(businessId);
+  const filtered = services.filter(s => s.id !== serviceId);
+  saveServices(filtered, businessId);
+}
+
+

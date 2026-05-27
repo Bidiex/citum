@@ -1,5 +1,6 @@
 import { showConfirm } from '../utils/confirm.js';
 import { showToast } from '../utils/toast.js';
+import { getServices, getActiveBusinessId } from '../utils/businessState.js';
 
 // Helper para formatear fecha en español
 function formatDateSpanish(dateStr) {
@@ -13,18 +14,15 @@ function formatDateSpanish(dateStr) {
   return formatted.charAt(0).toUpperCase() + formatted.slice(1);
 }
 
-// Catálogo de precios para mostrar el desglose si no viene en el objeto
-const SERVICE_PRICES = {
-  'Corte Premium': 35000,
-  'Afeitado de Barba': 25000,
-  'Perfilado de Cejas': 12000,
-  'Combo Imperial': 55000,
-  'Corte de Cabello Premium': 35000,
-  'Afeitado de Barba Ritual': 25000
-};
-
 export function openAptDetailModal({ apt, onEdit = null, onDelete = null }) {
   if (!apt) return;
+
+  const bizId = getActiveBusinessId();
+  const services = getServices(bizId);
+  const SERVICE_PRICES = {};
+  services.forEach(s => {
+    SERVICE_PRICES[s.name] = s.price;
+  });
 
   // Evitar duplicados
   const existing = document.getElementById('apt-detail-root');

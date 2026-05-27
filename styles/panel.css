@@ -403,6 +403,21 @@ body {
   gap: var(--space-6);
 }
 
+.grid-panel .card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  transition: transform var(--transition-base), box-shadow var(--transition-base), border-color var(--transition-base);
+}
+
+.grid-panel .card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-hover);
+  border-color: var(--accent-purple);
+}
+
+
 /* ==========================================================================
    CLIENTS CRM MODULE & AUTOCOMPLETE DROPDOWN STYLES
    ========================================================================== */

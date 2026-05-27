@@ -1,14 +1,7 @@
 // appointment-modal.js — Componente Modal de Nueva/Editar Cita para Recepcionistas
 import { showToast } from '../utils/toast.js';
 import { getColombiaTodayStr, getColombiaTimeParts } from '../utils/format.js';
-import { searchClientsByName, getActiveBusinessId } from '../utils/businessState.js';
-
-const SERVICES = [
-  { name: 'Corte Premium', price: 35000, duration: 40 },
-  { name: 'Afeitado de Barba', price: 25000, duration: 30 },
-  { name: 'Perfilado de Cejas', price: 12000, duration: 15 },
-  { name: 'Combo Imperial', price: 55000, duration: 75 }
-];
+import { searchClientsByName, getActiveBusinessId, getServices } from '../utils/businessState.js';
 
 const TIME_SLOTS = [
   '08:00 AM', '08:30 AM', '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM',
@@ -17,15 +10,6 @@ const TIME_SLOTS = [
   '05:00 PM', '05:30 PM', '06:00 PM', '06:30 PM', '07:00 PM', '07:30 PM',
   '08:00 PM'
 ];
-
-const SERVICE_DURATIONS = {
-  'Corte Premium': 40,
-  'Perfilado de Cejas': 15,
-  'Afeitado de Barba': 30,
-  'Combo Imperial': 75,
-  'Corte de Cabello Premium': 40,
-  'Afeitado de Barba Ritual': 30
-};
 
 function parseTimeString(timeStr) {
   const [time, modifier] = timeStr.split(' ');
@@ -47,6 +31,13 @@ function formatTimeString(minutesSinceMidnight) {
 }
 
 export function openAppointmentModal({ appointments = [], onSave = null, mode = 'create', appointmentData = null } = {}) {
+  const bizId = getActiveBusinessId();
+  const SERVICES = getServices(bizId).filter(s => s.active !== false);
+  const SERVICE_DURATIONS = {};
+  SERVICES.forEach(s => {
+    SERVICE_DURATIONS[s.name] = s.duration;
+  });
+
   // Asegurar que no haya otro modal duplicado
   const existing = document.getElementById('apt-modal-root');
   if (existing) {
@@ -362,7 +353,15 @@ export function openAppointmentModal({ appointments = [], onSave = null, mode = 
   // Helper: Rango ocupado por cita
   function getAppointmentTimeRange(apt) {
     const start = parseTimeString(apt.time);
-    const duration = SERVICE_DURATIONS[apt.service] || 30;
+    let duration = 0;
+    if (apt.service) {
+      const parts = apt.service.split(' + ').map(s => s.trim());
+      parts.forEach(part => {
+        duration += SERVICE_DURATIONS[part] || 30;
+      });
+    } else {
+      duration = 30;
+    }
     return { start, end: start + duration };
   }
 
