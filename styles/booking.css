@@ -40,14 +40,21 @@
   width: 44px;
   height: 44px;
   border-radius: var(--radius-sm);
-  background: var(--grad-brand);
-  color: #ffffff;
+  background: var(--biz-accent);
+  color: var(--biz-accent-text);
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 800;
   font-size: var(--text-xl);
-  box-shadow: var(--shadow-glow);
+  box-shadow: 0 0 10px var(--biz-accent-light);
+  overflow: hidden;
+}
+
+.business-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .business-title {
@@ -65,7 +72,7 @@
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--bg-secondary);
   border: 1px solid var(--border-soft);
   display: flex;
   align-items: center;
@@ -76,7 +83,7 @@
 
 .exit-booking-btn:hover {
   color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--bg-card-hover);
 }
 
 /* Stepper Component */
@@ -133,10 +140,10 @@
 }
 
 .step-indicator.active .step-number {
-  background: var(--accent-purple);
-  border-color: var(--accent-purple);
-  color: #ffffff;
-  box-shadow: 0 0 10px rgba(139, 92, 255, 0.4);
+  background: var(--biz-accent);
+  border-color: var(--biz-accent);
+  color: var(--biz-accent-text);
+  box-shadow: 0 0 10px var(--biz-accent-light);
 }
 
 .step-indicator.active .step-label {
@@ -144,9 +151,9 @@
 }
 
 .step-indicator.completed .step-number {
-  background: rgba(139, 92, 255, 0.15);
-  border-color: var(--accent-purple);
-  color: var(--accent-neon);
+  background: var(--biz-accent-light);
+  border-color: var(--biz-accent);
+  color: var(--biz-accent);
 }
 
 .step-connector {
@@ -160,7 +167,7 @@
 }
 
 .step-connector.completed {
-  background: var(--accent-purple);
+  background: var(--biz-accent);
 }
 
 /* Main Scheduling area */
@@ -189,7 +196,7 @@
 .loader-icon {
   width: 36px;
   height: 36px;
-  color: var(--accent-purple);
+  color: var(--biz-accent);
 }
 
 .anim-spin {
@@ -246,13 +253,13 @@
 }
 
 .booking-service-card:hover {
-  border-color: rgba(139, 92, 255, 0.2);
+  border-color: var(--biz-accent);
   background: var(--bg-card);
 }
 
 .booking-service-card.selected {
-  border-color: var(--accent-purple);
-  background: rgba(139, 92, 255, 0.05);
+  border-color: var(--biz-accent);
+  background: var(--biz-accent-light);
 }
 
 .service-card-info {
@@ -290,8 +297,8 @@
 }
 
 .meta-pill.price {
-  color: var(--accent-neon);
-  background: rgba(139, 92, 255, 0.08);
+  color: var(--biz-accent);
+  background: var(--biz-accent-light);
 }
 
 .service-card-action {
@@ -307,9 +314,9 @@
 }
 
 .booking-service-card.selected .service-card-action {
-  background: var(--accent-purple);
-  border-color: var(--accent-purple);
-  color: #ffffff;
+  background: var(--biz-accent);
+  border-color: var(--biz-accent);
+  color: var(--biz-accent-text);
 }
 
 /* Booking Footer/Float bar */
@@ -318,11 +325,12 @@
   bottom: 0;
   left: 0;
   width: 100%;
-  background: rgba(19, 16, 51, 0.85);
+  background: var(--bg-card);
   backdrop-filter: blur(16px);
   border-top: 1px solid var(--border-soft);
   padding-block: var(--space-4);
   z-index: 100;
+  opacity: 0.95;
 }
 
 .booking-float-container {

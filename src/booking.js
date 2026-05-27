@@ -1,6 +1,74 @@
 // booking.js — Coordinador y Enrutador del Flujo de Reserva Público
+import { getBusinesses } from './utils/businessState.js';
+
+function hexToRgba(hex, alpha) {
+  let c;
+  if (/^#([A-Fa-f0-9]{3}){1,2}$/.test(hex)) {
+    c = hex.substring(1).split('');
+    if (c.length === 3) {
+      c = [c[0], c[0], c[1], c[1], c[2], c[2]];
+    }
+    c = '0x' + c.join('');
+    return 'rgba(' + [(c >> 16) & 255, (c >> 8) & 255, c & 255].join(',') + ',' + alpha + ')';
+  }
+  return hex;
+}
+
+function getContrastColor(hex) {
+  let r = 0, g = 0, b = 0;
+  if (/^#([A-Fa-f0-9]{3}){1,2}$/.test(hex)) {
+    const cleanHex = hex.substring(1);
+    const fullHex = cleanHex.length === 3 
+      ? cleanHex.split('').map(x => x + x).join('')
+      : cleanHex;
+    const num = parseInt(fullHex, 16);
+    r = (num >> 16) & 255;
+    g = (num >> 8) & 255;
+    b = num & 255;
+  }
+  const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+  return (yiq >= 180) ? '#181135' : '#ffffff';
+}
 
 document.addEventListener('DOMContentLoaded', () => {
+  // 1. Cargar negocio dinámico desde query param ?b=slug o localStorage por defecto
+  const urlParams = new URLSearchParams(window.location.search);
+  const bizSlug = urlParams.get('b');
+  const businesses = getBusinesses();
+  
+  let activeBiz = businesses[0]; // Fallback al primero
+  if (bizSlug) {
+    const found = businesses.find(b => b.slug === bizSlug);
+    if (found) activeBiz = found;
+  }
+
+  // Aplicar datos del negocio a la UI de reservas
+  if (activeBiz) {
+    // Título
+    const titleEl = document.getElementById('booking-biz-title');
+    if (titleEl) titleEl.textContent = activeBiz.name;
+
+    // Dirección
+    const addressEl = document.getElementById('booking-biz-address');
+    if (addressEl) addressEl.textContent = activeBiz.address || 'Sin dirección registrada';
+
+    // Logo / Inicial
+    const logoEl = document.querySelector('.business-logo');
+    if (logoEl) {
+      if (activeBiz.logo) {
+        logoEl.innerHTML = `<img src="${activeBiz.logo}" alt="${activeBiz.name}" style="width: 100%; height: 100%; object-fit: cover;" />`;
+      } else {
+        logoEl.textContent = activeBiz.name.charAt(0).toUpperCase();
+      }
+    }
+
+    // Aplicar variables CSS
+    const color = activeBiz.color || '#8B5CF6';
+    document.documentElement.style.setProperty('--biz-accent', color);
+    document.documentElement.style.setProperty('--biz-accent-light', hexToRgba(color, 0.12));
+    document.documentElement.style.setProperty('--biz-accent-text', getContrastColor(color));
+  }
+
   // Inicializar íconos Lucide
   if (typeof lucide !== 'undefined') {
     lucide.createIcons();
@@ -111,10 +179,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     container.innerHTML = `
       <div class="booking-loading-placeholder" style="padding-top: var(--space-8);">
-        <i data-lucide="check-circle" style="width: 64px; height: 64px; color: var(--accent-neon); filter: drop-shadow(0 0 10px rgba(139,92,255,0.4));"></i>
+        <i data-lucide="check-circle" style="width: 64px; height: 64px; color: var(--biz-accent); filter: drop-shadow(0 0 10px var(--biz-accent-light));"></i>
         <h2 style="margin-top: var(--space-4);">¡Reserva Confirmada Exitosamente!</h2>
         <p style="color: var(--text-secondary); margin-bottom: var(--space-6);">Tu cita ha sido agendada. Te esperamos el día seleccionado.</p>
-        <a href="/index.html" class="btn btn-primary">Volver al Inicio</a>
+        <a href="/index.html" class="btn btn-primary" style="background: var(--biz-accent); border:none; box-shadow: 0 4px 15px var(--biz-accent-light);">Volver al Inicio</a>
       </div>
     `;
     if (typeof lucide !== 'undefined') {

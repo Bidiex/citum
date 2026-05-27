@@ -1,4 +1,10 @@
 // panel.js — SPA Router y Coordinador del Panel de Propietario
+import { 
+  getBusinesses, 
+  getActiveBusinessId, 
+  setActiveBusinessId, 
+  getActiveBusiness 
+} from './utils/businessState.js';
 
 document.addEventListener('DOMContentLoaded', () => {
   // Inicializar Iconos Lucide
@@ -11,6 +17,78 @@ document.addEventListener('DOMContentLoaded', () => {
   const bizOptions = document.getElementById('selector-options');
   const bizNameSpan = document.getElementById('current-business-name');
 
+  const renderBusinessSelector = () => {
+    if (!bizOptions) return;
+    
+    const businesses = getBusinesses();
+    const activeId = getActiveBusinessId();
+    const activeBiz = getActiveBusiness();
+    
+    if (bizNameSpan && activeBiz) {
+      bizNameSpan.textContent = activeBiz.name;
+    }
+    
+    let html = '';
+    businesses.forEach(biz => {
+      const isActive = biz.id === activeId;
+      html += `
+        <a href="#" class="selector-option ${isActive ? 'active' : ''}" data-id="${biz.id}">
+          ${biz.name}
+        </a>
+      `;
+    });
+    
+    html += `
+      <hr style="border:0; border-top: 1px solid var(--border-soft); margin-block: var(--space-2);">
+      <a href="#" class="selector-option add-new-business" style="color: var(--accent-neon); display: flex; align-items: center; gap: var(--space-2);">
+        <i data-lucide="plus" size="14"></i>
+        Agregar Negocio
+      </a>
+    `;
+    
+    bizOptions.innerHTML = html;
+    
+    if (typeof lucide !== 'undefined') {
+      lucide.createIcons({
+        attrs: { 'stroke-width': 2, 'size': 14 },
+        nameAttr: 'data-lucide',
+        node: bizOptions
+      });
+    }
+    
+    // Bind click events to options
+    bizOptions.querySelectorAll('.selector-option:not(.add-new-business)').forEach(option => {
+      option.addEventListener('click', (e) => {
+        e.preventDefault();
+        const id = option.getAttribute('data-id');
+        setActiveBusinessId(id);
+        bizOptions.classList.remove('open');
+      });
+    });
+    
+    // Bind click to Add Business
+    const addBtn = bizOptions.querySelector('.add-new-business');
+    if (addBtn) {
+      addBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        bizOptions.classList.remove('open');
+        const { openBusinessModal } = await import('./components/business-modal.js');
+        openBusinessModal({
+          mode: 'create',
+          onSave: () => {
+            renderBusinessSelector();
+            // Refrescar sección activa
+            const activeNav = document.querySelector('.sidebar-item.active');
+            if (activeNav) {
+              const section = activeNav.getAttribute('data-section');
+              navigate(section);
+            }
+          }
+        });
+      });
+    }
+  };
+
   if (bizBtn && bizOptions) {
     bizBtn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -22,30 +100,24 @@ document.addEventListener('DOMContentLoaded', () => {
       bizOptions.classList.remove('open');
     });
 
-    // Cambiar negocio activo
-    bizOptions.querySelectorAll('.selector-option:not(.add-new-business)').forEach(option => {
-      option.addEventListener('click', (e) => {
-        e.preventDefault();
-        
-        // Quitar active del resto
-        bizOptions.querySelectorAll('.selector-option').forEach(opt => opt.classList.remove('active'));
-        
-        // Agregar active a la opción seleccionada
-        option.classList.add('active');
-        
-        // Cambiar texto en el botón principal
-        bizNameSpan.textContent = option.textContent;
-        bizOptions.classList.remove('open');
-        
-        // Opcional: Recargar sección activa con los datos del nuevo negocio
-        const activeNav = document.querySelector('.sidebar-item.active');
-        if (activeNav) {
-          const section = activeNav.getAttribute('data-section');
-          navigate(section);
-        }
-      });
-    });
+    // Renderizar selector por primera vez
+    renderBusinessSelector();
   }
+
+  // Escuchar cambios globales de negocios
+  window.addEventListener('citum_businesses_changed', () => {
+    renderBusinessSelector();
+  });
+
+  window.addEventListener('citum_active_business_changed', () => {
+    renderBusinessSelector();
+    // Recargar sección activa al cambiar negocio
+    const activeNav = document.querySelector('.sidebar-item.active');
+    if (activeNav) {
+      const section = activeNav.getAttribute('data-section');
+      navigate(section);
+    }
+  });
 
   // 2. Menú de Navegación Lateral (Sidebar SPA)
   const navItems = document.querySelectorAll('.sidebar-item:not(.logout-btn)');

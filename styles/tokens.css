@@ -40,6 +40,11 @@
   --grad-glow: linear-gradient(180deg, rgba(140, 82, 255, 0.18), rgba(140, 82, 255, 0.05));
   --grad-cta: linear-gradient(90deg, #6D3BFF, #8C52FF);
 
+  /* Color del negocio (modificado dinámicamente) */
+  --biz-accent: #8B5CF6;
+  --biz-accent-light: rgba(139, 92, 255, 0.12);
+  --biz-accent-text: #ffffff;
+
   /* Breakpoints standard */
   --bp-sm:  576px;
   --bp-md:  768px;

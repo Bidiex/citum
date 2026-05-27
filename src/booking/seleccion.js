@@ -1,4 +1,5 @@
 // seleccion.js — Módulo del paso 2: Selección de Profesional, Fecha y Hora
+import { getColombiaDate } from '../utils/format.js';
 
 export function init(container, state, actions) {
   // Profesionales de prueba
@@ -17,11 +18,15 @@ export function init(container, state, actions) {
     for (let i = 0; i < 5; i++) {
       const d = new Date();
       d.setDate(d.getDate() + i);
+      const colDateStr = getColombiaDate(d);
+      // Crear una fecha local fija con la fecha de Colombia para extraer día y mes correctos
+      const colD = new Date(colDateStr + 'T00:00:00');
+      
       dates.push({
-        isoString: d.toISOString().split('T')[0],
-        dayName: daysOfWeek[d.getDay()],
-        dayNum: d.getDate(),
-        monthName: months[d.getMonth()]
+        isoString: colDateStr,
+        dayName: daysOfWeek[colD.getDay()],
+        dayNum: colD.getDate(),
+        monthName: months[colD.getMonth()]
       });
     }
     return dates;
