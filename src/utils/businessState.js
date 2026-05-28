@@ -89,6 +89,17 @@ export function updateBusiness(id, updatedData) {
   return null;
 }
 
+export function deleteBusiness(id) {
+  const businesses = getBusinesses();
+  const filtered = businesses.filter(b => b.id !== id);
+  saveBusinesses(filtered);
+  
+  if (getActiveBusinessId() === id) {
+    const nextId = filtered[0] ? filtered[0].id : '';
+    setActiveBusinessId(nextId);
+  }
+}
+
 // === CLIENT MANAGEMENT ===
 
 export function getClients(businessId) {

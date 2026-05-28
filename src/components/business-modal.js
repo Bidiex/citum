@@ -1,5 +1,7 @@
 // business-modal.js — Componente Drawer de Configuración de Negocio (Vanilla JS)
-import { addBusiness, updateBusiness } from '../utils/businessState.js';
+import { addBusiness, updateBusiness, deleteBusiness } from '../utils/businessState.js';
+import { showConfirm } from '../utils/confirm.js';
+import { showToast } from '../utils/toast.js';
 
 const PALETTE_COLORS = [
   // Rojos
@@ -17,7 +19,9 @@ const PALETTE_COLORS = [
   // Violetas / Morados
   '#C084FC', '#A855F7', '#9333EA', '#7C3AED', '#6D28D9', '#4C1D95',
   // Rosas / Magentas
-  '#F472B6', '#EC4899', '#DB2777', '#BE185D', '#9D174D', '#831843'
+  '#F472B6', '#EC4899', '#DB2777', '#BE185D', '#9D174D', '#831843',
+  // Neutros / Grises / Negro
+  '#000000', '#1F2937', '#4B5563', '#9CA3AF'
 ];
 
 function slugify(text) {
@@ -141,6 +145,67 @@ export function openBusinessModal({ mode = 'create', businessData = null, onSave
             `).join('')}
           </div>
         </div>
+
+        ${mode === 'edit' ? `
+          <!-- ⚠️ ESTADO Y ACCIONES AVANZADAS -->
+          <div class="apt-modal-section" style="margin-top: var(--space-6); border-top: 1px solid var(--border-soft); padding-top: var(--space-6);">
+            <div class="apt-modal-section-title" style="color: var(--accent-purple); margin-bottom: var(--space-3); font-weight: 700; font-size: var(--text-sm);">
+              <i data-lucide="shield-alert" size="14"></i>
+              Ajustes Avanzados
+            </div>
+
+            <!-- Toggle de Pausa -->
+            <div style="display: flex; flex-direction: column; gap: var(--space-1); margin-bottom: var(--space-6);">
+              <label class="schedule-day-toggle">
+                <input type="checkbox" id="biz-status-toggle" ${businessData?.paused ? 'checked' : ''} />
+                <div class="schedule-day-toggle-custom"></div>
+                <span style="font-size: var(--text-sm); font-weight: 700;">Pausar negocio (Temporalmente)</span>
+              </label>
+              <span style="font-size: var(--text-xs); color: var(--text-muted); margin-left: 44px;">
+                (Cuando un negocio está en pausa, los clientes no pueden agendar citas ni ver la página pública de reservas)
+              </span>
+            </div>
+
+            <!-- Sección de Eliminación -->
+            <div style="
+              border: 1px solid rgba(239, 68, 68, 0.2); 
+              background: rgba(239, 68, 68, 0.02); 
+              border-radius: var(--radius-sm); 
+              padding: var(--space-4);
+            ">
+              <h4 style="color: #ef4444; font-size: var(--text-sm); font-weight: 700; margin-top: 0; margin-bottom: var(--space-2); display: flex; align-items: center; gap: var(--space-2);">
+                <i data-lucide="trash-2" size="16"></i>
+                Eliminar Negocio permanentemente
+              </h4>
+              <p style="font-size: var(--text-xs); color: var(--text-muted); line-height: 1.4; margin-bottom: var(--space-4);">
+                Esta acción es <strong>completamente irreversible</strong>. Se eliminarán todos los registros asociados: profesionales, servicios, citas e historial de este negocio.
+              </p>
+              
+              <div class="form-group" style="margin-bottom: var(--space-3);">
+                <label for="biz-delete-confirm-input" style="font-size: var(--text-xs); color: var(--text-secondary);">
+                  Escribe el nombre del negocio <strong>"${name}"</strong> para confirmar:
+                </label>
+                <input 
+                  type="text" 
+                  id="biz-delete-confirm-input" 
+                  class="form-input" 
+                  placeholder="Ej. ${name}" 
+                  style="border-color: var(--border-soft); height: 36px; font-size: var(--text-xs);"
+                  autocomplete="off"
+                />
+              </div>
+
+              <button 
+                type="button" 
+                class="btn btn-danger" 
+                id="biz-delete-btn" 
+                style="width: 100%; height: 36px; font-size: var(--text-xs); font-weight: 700; opacity: 0.5; pointer-events: none;"
+              >
+                Eliminar Negocio
+              </button>
+            </div>
+          </div>
+        ` : ''}
       </div>
 
       <div class="biz-drawer-footer">
@@ -251,6 +316,43 @@ export function openBusinessModal({ mode = 'create', businessData = null, onSave
     }
   });
 
+  // Acciones de edición (Pausar y Eliminar)
+  if (mode === 'edit') {
+    const deleteInput = root.querySelector('#biz-delete-confirm-input');
+    const deleteBtn = root.querySelector('#biz-delete-btn');
+
+    deleteInput.addEventListener('input', (e) => {
+      const match = e.target.value.trim() === name.trim();
+      if (match) {
+        deleteBtn.style.opacity = '1';
+        deleteBtn.style.pointerEvents = 'auto';
+      } else {
+        deleteBtn.style.opacity = '0.5';
+        deleteBtn.style.pointerEvents = 'none';
+      }
+    });
+
+    deleteBtn.addEventListener('click', () => {
+      showConfirm({
+        title: '¿Eliminar negocio permanentemente?',
+        message: `Estás a punto de eliminar "${name}". Esta acción NO se puede deshacer y borrará permanentemente todos los datos, incluyendo servicios, profesionales y citas asociadas.`,
+        confirmLabel: 'Sí, eliminar negocio',
+        cancelLabel: 'Cancelar',
+        confirmVariant: 'danger',
+        onConfirm: () => {
+          deleteBusiness(businessData.id);
+          showToast({
+            title: 'Negocio eliminado',
+            subtitle: `El negocio "${name}" ha sido borrado de tu cuenta.`,
+            type: 'success'
+          });
+          closeDrawer();
+          if (onSave) onSave();
+        }
+      });
+    });
+  }
+
   // Validación y envío de formulario
   saveBtn.addEventListener('click', () => {
     let hasError = false;
@@ -285,6 +387,13 @@ export function openBusinessModal({ mode = 'create', businessData = null, onSave
       color: activeColor,
       logo: logoBase64
     };
+
+    if (mode === 'edit') {
+      const statusToggle = root.querySelector('#biz-status-toggle');
+      if (statusToggle) {
+        payload.paused = statusToggle.checked;
+      }
+    }
 
     if (mode === 'create') {
       payload.slug = slugify(nameInput.value.trim());

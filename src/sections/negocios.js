@@ -52,12 +52,27 @@ export function init(container) {
                 Teléfono: <strong style="color: var(--text-primary);">${biz.phone}</strong>
               </p>
 
+              <div style="display: flex; justify-content: space-between; align-items: center; font-size: var(--text-xs); margin-bottom: var(--space-4); border-bottom: 1px solid var(--border-soft); padding-bottom: var(--space-3);">
+                <span>Estado: <strong style="color: ${biz.paused ? '#f97316' : 'var(--accent-neon)'};">${biz.paused ? 'Pausado' : 'Activo'}</strong></span>
+              </div>
+
               <div style="display: flex; justify-content: space-between; align-items: center; font-size: var(--text-xs);">
-                <a href="/booking.html?b=${biz.slug}" target="_blank" class="text-gradient" style="font-weight: 700; display: inline-flex; align-items: center; gap: 4px; color: var(--accent-purple);">
+                <a href="/booking.html?b=${biz.slug}" target="_blank" class="btn" style="
+                  color: var(--accent-purple); 
+                  border: 1px solid rgba(139, 92, 255, 0.3); 
+                  background: rgba(139, 92, 255, 0.04); 
+                  padding: 5px 12px; 
+                  font-size: var(--text-xs); 
+                  text-decoration: none; 
+                  display: inline-flex; 
+                  align-items: center; 
+                  gap: 4px;
+                  transition: all var(--transition-base);
+                " onmouseover="this.style.background='rgba(139, 92, 255, 0.08)'; this.style.borderColor='var(--accent-purple)';" onmouseout="this.style.background='rgba(139, 92, 255, 0.04)'; this.style.borderColor='rgba(139, 92, 255, 0.3)';">
                   Ver Agendador
-                  <i data-lucide="external-link" size="12"></i>
+                  <i data-lucide="external-link" style="width: 10px; height: 10px;"></i>
                 </a>
-                <a href="#" class="edit-settings-link" data-id="${biz.id}" style="color: var(--text-muted); transition: color var(--transition-base);">Editar Ajustes</a>
+                <a href="#" class="edit-settings-link" data-id="${biz.id}" style="color: var(--accent-purple); font-weight: 600; text-decoration: none; display: flex; align-items: center; gap: 4px;">Editar Ajustes</a>
               </div>
             </div>
           `).join('')}
