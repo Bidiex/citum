@@ -1,10 +1,24 @@
-// clientes.js — Módulo de Clientes CRM para el Panel de Propietario
+// clientes.js — Módulo de Clientes CRM (conectado a Supabase)
 import { getClients, getActiveBusinessId } from '../utils/businessState.js';
 import { formatCurrency } from '../utils/format.js';
 
-export function init(container) {
+export async function init(container) {
   const businessId = getActiveBusinessId();
-  
+
+  if (!businessId) {
+    container.innerHTML = `
+      <div class="view-container">
+        <div class="crm-empty-state">
+          <i data-lucide="store" size="48" style="stroke-width:1.5; color:var(--accent-neon);"></i>
+          <h3>Sin negocio activo</h3>
+          <p>Selecciona un negocio desde el selector del header para ver sus clientes.</p>
+        </div>
+      </div>
+    `;
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+    return;
+  }
+
   container.innerHTML = `
     <div class="view-container">
       <div class="view-header">
@@ -22,39 +36,42 @@ export function init(container) {
         </div>
 
         <div class="crm-table-container" id="crm-table-content">
-          <!-- Se renderiza por JS -->
+          <div style="display:flex; align-items:center; justify-content:center; padding: var(--space-12);">
+            <i data-lucide="loader" class="anim-spin" style="color:var(--accent-neon);"></i>
+          </div>
         </div>
       </div>
     </div>
   `;
 
+  if (typeof lucide !== 'undefined') {
+    lucide.createIcons({ node: container });
+  }
+
   const searchInput = container.querySelector('#crm-client-search');
   const tableContent = container.querySelector('#crm-table-content');
 
-  // Inicializar iconos de la cabecera
-  if (typeof lucide !== 'undefined') {
-    lucide.createIcons({ node: container.querySelector('.crm-table-header-row') });
-  }
+  // Cache de clientes para filtrado local rápido
+  let allClients = await getClients(businessId);
 
   function renderTable(query = '') {
-    const clients = getClients(getActiveBusinessId());
     const lowerQuery = query.toLowerCase().trim();
-    
-    const filteredClients = clients.filter(c => {
-      return c.name.toLowerCase().includes(lowerQuery) || c.phone.includes(lowerQuery);
-    });
+    const filteredClients = lowerQuery
+      ? allClients.filter(c =>
+          c.name.toLowerCase().includes(lowerQuery) ||
+          (c.phone || '').includes(lowerQuery)
+        )
+      : allClients;
 
     if (filteredClients.length === 0) {
       tableContent.innerHTML = `
         <div class="crm-empty-state">
           <i data-lucide="users" size="48" style="stroke-width: 1.5; color: var(--accent-neon); margin-bottom: var(--space-2);"></i>
           <h3>No se encontraron clientes</h3>
-          <p>${query ? 'Intenta buscar con otros términos.' : 'Registra tu primera cita para crear un cliente automáticamente.'}</p>
+          <p>${query ? 'Intenta buscar con otros términos.' : 'Los clientes se crean automáticamente al agendar una cita.'}</p>
         </div>
       `;
-      if (typeof lucide !== 'undefined') {
-        lucide.createIcons({ node: tableContent });
-      }
+      if (typeof lucide !== 'undefined') lucide.createIcons({ node: tableContent });
       return;
     }
 
@@ -71,18 +88,17 @@ export function init(container) {
         </thead>
         <tbody>
           ${filteredClients.map(c => {
-            // Formatear fecha
             let dateFormatted = '';
-            if (c.lastServiceDate) {
+            if (c.last_service_date) {
               try {
-                const dateObj = new Date(c.lastServiceDate + 'T00:00:00');
+                const dateObj = new Date(c.last_service_date + 'T00:00:00');
                 dateFormatted = dateObj.toLocaleDateString('es-CO', {
                   day: 'numeric',
                   month: 'short',
                   year: 'numeric'
                 });
-              } catch (e) {
-                dateFormatted = c.lastServiceDate;
+              } catch (_) {
+                dateFormatted = c.last_service_date;
               }
             }
 
@@ -95,7 +111,7 @@ export function init(container) {
                   <div class="crm-client-contact">
                     <span class="crm-contact-item">
                       <i data-lucide="phone" size="12"></i>
-                      ${c.phone}
+                      ${c.phone || '—'}
                     </span>
                   </div>
                 </td>
@@ -104,14 +120,14 @@ export function init(container) {
                 </td>
                 <td>
                   <div style="display: flex; flex-direction: column; gap: 4px;">
-                    <span class="crm-client-service-pill">${c.lastService || 'Ninguno'}</span>
+                    <span class="crm-client-service-pill">${c.last_service || 'Ninguno'}</span>
                     <span style="font-size: 11px; color: var(--text-muted); font-weight: 500;">${dateFormatted}</span>
                   </div>
                 </td>
                 <td>
                   <div style="display: flex; align-items: center;">
-                    <span class="crm-client-visits-badge">${c.totalVisits} ${c.totalVisits === 1 ? 'visita' : 'visitas'}</span>
-                    <span class="crm-client-total-spent">${formatCurrency(c.totalSpent || 0)}</span>
+                    <span class="crm-client-visits-badge">${c.total_visits || 0} ${(c.total_visits || 0) === 1 ? 'visita' : 'visitas'}</span>
+                    <span class="crm-client-total-spent">${formatCurrency(c.total_spent || 0)}</span>
                   </div>
                 </td>
               </tr>
@@ -121,12 +137,10 @@ export function init(container) {
       </table>
     `;
 
-    if (typeof lucide !== 'undefined') {
-      lucide.createIcons({ node: tableContent });
-    }
+    if (typeof lucide !== 'undefined') lucide.createIcons({ node: tableContent });
   }
 
-  // Escuchar entrada de búsqueda
+  // Búsqueda en tiempo real (filtrado local)
   searchInput.addEventListener('input', (e) => {
     renderTable(e.target.value);
   });
@@ -134,15 +148,16 @@ export function init(container) {
   // Render inicial
   renderTable();
 
-  // Escuchar cambios de clientes en localStorage
-  const handleClientsChanged = (e) => {
-    if (e.detail.businessId === getActiveBusinessId()) {
+  // Escuchar actualizaciones (cuando se agenda una cita)
+  const handleClientsChanged = async (e) => {
+    if (!e.detail || e.detail.businessId === businessId) {
+      allClients = await getClients(businessId);
       renderTable(searchInput.value);
     }
   };
   window.addEventListener('citum_clients_changed', handleClientsChanged);
 
-  // Limpieza al desmontar para evitar fugas de memoria
+  // Limpieza al desmontar
   const checkInterval = setInterval(() => {
     if (!document.body.contains(container)) {
       window.removeEventListener('citum_clients_changed', handleClientsChanged);

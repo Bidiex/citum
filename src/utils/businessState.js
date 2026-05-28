@@ -1,360 +1,795 @@
-// businessState.js — Manejo de estado persistente de negocios para Citum
+import { supabase } from '../core/supabase.js';
+import { parseTimestamptzToColombia, parseColombiaToTimestamptz } from './format.js';
 
-const DEFAULT_BUSINESSES = [
-  {
-    id: '1',
-    name: 'Barbería Imperial',
-    slug: 'barberia-imperial',
-    phone: '3001234567',
-    address: 'Calle 72 #10-15, Bogotá',
-    color: '#8B5CF6', // Violeta por defecto
-    logo: ''
-  },
-  {
-    id: '2',
-    name: 'Salón Deluxe',
-    slug: 'salon-deluxe',
-    phone: '3009876543',
-    address: 'Av. 19 #100-80, Bogotá',
-    color: '#EC4899', // Rosa por defecto
-    logo: ''
-  }
-];
+// ============================================================
+// ESTADO LOCAL (cache en memoria para la sesión activa)
+// ============================================================
 
-export function getBusinesses() {
-  const cached = localStorage.getItem('citum_businesses');
-  if (!cached) {
-    localStorage.setItem('citum_businesses', JSON.stringify(DEFAULT_BUSINESSES));
-    return DEFAULT_BUSINESSES;
-  }
-  return JSON.parse(cached);
+let _cachedBusinesses = null;
+let _activeBusinessId = null;
+
+/**
+ * Obtiene el user_id de la sesión activa.
+ * En modo de prueba sin login real, se puede pasar un override.
+ */
+async function getUserId() {
+  const { data } = await supabase.auth.getSession();
+  return data?.session?.user?.id || null;
 }
 
-export function saveBusinesses(businesses) {
-  localStorage.setItem('citum_businesses', JSON.stringify(businesses));
-  // Notificar cambios para que dropdown o secciones se enteren
-  window.dispatchEvent(new CustomEvent('citum_businesses_changed', { detail: businesses }));
+// ============================================================
+// GESTIÓN DE NEGOCIOS
+// ============================================================
+
+/**
+ * Carga todos los negocios del usuario autenticado desde Supabase.
+ */
+export async function getBusinesses() {
+  const userId = await getUserId();
+  if (!userId) return [];
+
+  const { data, error } = await supabase
+    .from('businesses')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    console.error('[getBusinesses] Error:', error.message);
+    return [];
+  }
+
+  _cachedBusinesses = data || [];
+  return _cachedBusinesses;
 }
 
+/**
+ * Retorna el id del negocio activo (cache o primer negocio cargado).
+ */
 export function getActiveBusinessId() {
-  const activeId = localStorage.getItem('citum_active_business_id');
-  if (!activeId) {
-    const businesses = getBusinesses();
-    const firstId = businesses[0] ? businesses[0].id : '';
-    localStorage.setItem('citum_active_business_id', firstId);
-    return firstId;
+  if (_activeBusinessId) return _activeBusinessId;
+  if (_cachedBusinesses && _cachedBusinesses.length > 0) {
+    _activeBusinessId = _cachedBusinesses[0].id;
   }
-  return activeId;
+  return _activeBusinessId || null;
 }
 
+/**
+ * Cambia el negocio activo y dispara evento para que el panel se refresque.
+ */
 export function setActiveBusinessId(id) {
-  localStorage.setItem('citum_active_business_id', id);
+  _activeBusinessId = id;
   window.dispatchEvent(new CustomEvent('citum_active_business_changed', { detail: id }));
 }
 
+/**
+ * Devuelve el negocio activo del cache.
+ */
 export function getActiveBusiness() {
-  const businesses = getBusinesses();
-  const activeId = getActiveBusinessId();
-  return businesses.find(b => b.id === activeId) || businesses[0] || null;
+  if (!_cachedBusinesses || !_activeBusinessId) return null;
+  return _cachedBusinesses.find(b => b.id === _activeBusinessId) || _cachedBusinesses[0] || null;
 }
 
-export function addBusiness(newBiz) {
-  const businesses = getBusinesses();
-  const bizWithId = {
-    ...newBiz,
-    id: Date.now().toString()
-  };
-  businesses.push(bizWithId);
-  saveBusinesses(businesses);
-  setActiveBusinessId(bizWithId.id); // Hacer activo al crear
-  return bizWithId;
-}
+/**
+ * Crea un nuevo negocio en Supabase.
+ */
+export async function addBusiness(payload) {
+  const userId = await getUserId();
+  if (!userId) throw new Error('No hay sesión activa');
 
-export function updateBusiness(id, updatedData) {
-  const businesses = getBusinesses();
-  const index = businesses.findIndex(b => b.id === id);
-  if (index !== -1) {
-    businesses[index] = {
-      ...businesses[index],
-      ...updatedData
-      // Nota: El slug y el nombre no se modifican si es edición
-    };
-    saveBusinesses(businesses);
-    // Si era el negocio activo, disparar cambio activo para refrescar la UI
-    if (getActiveBusinessId() === id) {
-      setActiveBusinessId(id);
-    }
-    return businesses[index];
+  const { data, error } = await supabase
+    .from('businesses')
+    .insert({
+      user_id: userId,
+      name: payload.name,
+      slug: payload.slug,
+      phone: payload.phone || null,
+      address: payload.address || null,
+      color: payload.color || '#8B5CF6',
+      logo_url: payload.logo || null,
+      is_paused: false,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('[addBusiness] Error:', error.message);
+    throw error;
   }
-  return null;
+
+  // Actualizar cache
+  _cachedBusinesses = null;
+  setActiveBusinessId(data.id);
+  window.dispatchEvent(new CustomEvent('citum_businesses_changed', { detail: data }));
+  return data;
 }
 
-export function deleteBusiness(id) {
-  const businesses = getBusinesses();
-  const filtered = businesses.filter(b => b.id !== id);
-  saveBusinesses(filtered);
+/**
+ * Actualiza datos de un negocio existente.
+ */
+export async function updateBusiness(id, payload) {
+  const update = {
+    phone: payload.phone,
+    address: payload.address || null,
+    color: payload.color || '#8B5CF6',
+    logo_url: payload.logo || null,
+    is_paused: payload.paused || false,
+  };
+
+  const { data, error } = await supabase
+    .from('businesses')
+    .update(update)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('[updateBusiness] Error:', error.message);
+    throw error;
+  }
+
+  // Actualizar cache
+  _cachedBusinesses = null;
+  window.dispatchEvent(new CustomEvent('citum_businesses_changed', { detail: data }));
+  return data;
+}
+
+/**
+ * Elimina un negocio (CASCADE elimina todo lo relacionado).
+ */
+export async function deleteBusiness(id) {
+  const { error } = await supabase
+    .from('businesses')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    console.error('[deleteBusiness] Error:', error.message);
+    throw error;
+  }
+
+  // Limpiar cache
+  _cachedBusinesses = null;
+  if (_activeBusinessId === id) {
+    _activeBusinessId = null;
+  }
+  window.dispatchEvent(new CustomEvent('citum_businesses_changed'));
+}
+
+// ============================================================
+// GESTIÓN DE CLIENTES (CRM)
+// ============================================================
+
+/**
+ * Obtiene todos los clientes de un negocio.
+ */
+export async function getClients(businessId) {
+  const bizId = businessId || getActiveBusinessId();
+  if (!bizId) return [];
+
+  const { data, error } = await supabase
+    .from('clients')
+    .select('*')
+    .eq('business_id', bizId)
+    .order('name', { ascending: true });
+
+  if (error) {
+    console.error('[getClients] Error:', error.message);
+    return [];
+  }
+  return data || [];
+}
+
+/**
+ * Busca clientes por nombre o teléfono.
+ */
+export async function searchClientsByName(query, businessId) {
+  const bizId = businessId || getActiveBusinessId();
+  if (!bizId || !query || query.length < 2) return [];
+
+  const { data, error } = await supabase
+    .from('clients')
+    .select('id, name, phone, email')
+    .eq('business_id', bizId)
+    .or(`name.ilike.%${query}%,phone.ilike.%${query}%`)
+    .limit(10);
+
+  if (error) return [];
+  return data || [];
+}
+
+/**
+ * Upsert de cliente desde una cita (suma visitas y gasto).
+ * Llama al RPC del servidor para atomicidad.
+ */
+export async function upsertClientFromAppointment(appointment, businessId) {
+  const bizId = businessId || getActiveBusinessId();
+  if (!bizId) return;
+
+  const { error } = await supabase.rpc('upsert_client_from_appointment', {
+    p_business_id: bizId,
+    p_name: appointment.client,
+    p_phone: appointment.phone,
+    p_email: appointment.email || null,
+    p_service_name: appointment.service || null,
+    p_service_date: appointment.date || null,
+    p_amount: appointment.totalPrice || 0,
+  });
+
+  if (error) console.error('[upsertClientFromAppointment] Error:', error.message);
+
+  window.dispatchEvent(new CustomEvent('citum_clients_changed', { detail: { businessId: bizId } }));
+}
+
+/**
+ * Descontar estadísticas de un cliente al cancelar/eliminar cita.
+ * (Manejado automáticamente por el trigger de la DB, pero disparamos el evento)
+ */
+export async function removeClientAppointmentStats(appointment, businessId) {
+  const bizId = businessId || getActiveBusinessId();
+  window.dispatchEvent(new CustomEvent('citum_clients_changed', { detail: { businessId: bizId } }));
+}
+
+// ============================================================
+// GESTIÓN DE SERVICIOS
+// ============================================================
+
+/**
+ * Obtiene todos los servicios de un negocio.
+ */
+export async function getServices(businessId) {
+  const bizId = businessId || getActiveBusinessId();
+  if (!bizId) return [];
+
+  const { data, error } = await supabase
+    .from('services')
+    .select('*')
+    .eq('business_id', bizId)
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    console.error('[getServices] Error:', error.message);
+    return [];
+  }
+
+  // Normalizar nombres de campo para compatibilidad con código existente:
+  // DB usa duration_min y description → código usa duration y desc
+  return (data || []).map(s => ({
+    ...s,
+    duration: s.duration_min,      // alias para el código existente
+    desc: s.description || '',     // alias para el código existente
+    active: s.is_active,           // alias para el código existente
+  }));
+}
+
+/**
+ * Crea un nuevo servicio.
+ */
+export async function addService(businessId, payload) {
+  const bizId = businessId || getActiveBusinessId();
+  if (!bizId) throw new Error('No hay negocio activo');
+
+  const { data, error } = await supabase
+    .from('services')
+    .insert({
+      business_id: bizId,
+      name: payload.name,
+      description: payload.desc || '',
+      price: payload.price,
+      duration_min: payload.duration,
+      is_active: payload.active !== false,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('[addService] Error:', error.message);
+    throw error;
+  }
+
+  window.dispatchEvent(new CustomEvent('citum_services_changed', { detail: { businessId: bizId } }));
+  return { ...data, duration: data.duration_min, desc: data.description, active: data.is_active };
+}
+
+/**
+ * Actualiza un servicio existente.
+ */
+export async function updateService(businessId, serviceId, payload) {
+  const { data, error } = await supabase
+    .from('services')
+    .update({
+      name: payload.name,
+      description: payload.desc || '',
+      price: payload.price,
+      duration_min: payload.duration,
+      is_active: payload.active !== false,
+    })
+    .eq('id', serviceId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('[updateService] Error:', error.message);
+    throw error;
+  }
+
+  const bizId = businessId || getActiveBusinessId();
+  window.dispatchEvent(new CustomEvent('citum_services_changed', { detail: { businessId: bizId } }));
+  return { ...data, duration: data.duration_min, desc: data.description, active: data.is_active };
+}
+
+/**
+ * Elimina un servicio.
+ */
+export async function deleteService(businessId, serviceId) {
+  const { error } = await supabase
+    .from('services')
+    .delete()
+    .eq('id', serviceId);
+
+  if (error) {
+    console.error('[deleteService] Error:', error.message);
+    throw error;
+  }
+
+  const bizId = businessId || getActiveBusinessId();
+  window.dispatchEvent(new CustomEvent('citum_services_changed', { detail: { businessId: bizId } }));
+}
+
+// ============================================================
+// HELPER: Buscar cliente por teléfono (para formularios)
+// ============================================================
+export async function findClientByPhone(phone, businessId) {
+  const bizId = businessId || getActiveBusinessId();
+  if (!bizId || !phone) return null;
+
+  const { data } = await supabase
+    .from('clients')
+    .select('id, name, phone, email')
+    .eq('business_id', bizId)
+    .eq('phone', phone.trim())
+    .maybeSingle();
+
+  return data || null;
+}
+
+// ============================================================
+// HELPER: Guardar negocios (compatibilidad, no se usa directamente)
+// ============================================================
+export function saveBusinesses() {
+  // No-op: En Supabase, los cambios se hacen directamente en la DB.
+  // Se mantiene por compatibilidad con código legacy que pudiera llamarlo.
+}
+
+export function saveClients() {
+  // No-op: El CRM ahora se actualiza via DB trigger y RPC.
+}
+
+export function saveServices() {
+  // No-op
+}
+
+// ============================================================
+// GESTIÓN DE CITAS (APPOINTMENTS)
+// ============================================================
+
+/**
+ * Carga todas las citas del negocio activo.
+ */
+export async function getAppointments(businessId) {
+  const bizId = businessId || getActiveBusinessId();
+  if (!bizId) return [];
+
+  const { data, error } = await supabase
+    .from('appointments')
+    .select(`
+      *,
+      professionals (name),
+      appointment_services (
+        service_id,
+        service_name,
+        price_at_time,
+        duration_at_time
+      )
+    `)
+    .eq('business_id', bizId);
+
+  if (error) {
+    console.error('[getAppointments] Error:', error.message);
+    return [];
+  }
+
+  // Mapear al formato usado por el calendario
+  return (data || []).map(apt => {
+    const { date, time } = parseTimestamptzToColombia(apt.starts_at);
+    const serviceNames = (apt.appointment_services || []).map(s => s.service_name);
+    return {
+      id: apt.id,
+      date,
+      time,
+      client: apt.client_name,
+      phone: apt.client_phone,
+      email: apt.client_email,
+      service: serviceNames.join(' + '),
+      prof: apt.professionals ? apt.professionals.name : 'Cualquiera',
+      professional_id: apt.professional_id,
+      status: apt.status,
+      notes: apt.notes,
+      totalPrice: Number(apt.total_price),
+      rawServices: apt.appointment_services
+    };
+  });
+}
+
+/**
+ * Crea una nueva cita y sus servicios correspondientes.
+ */
+export async function addAppointment(businessId, payload, selectedServices) {
+  const bizId = businessId || getActiveBusinessId();
+  if (!bizId) throw new Error('No hay negocio activo');
+
+  // Convertir a timestamptz en Colombia UTC-5
+  const startsAt = parseColombiaToTimestamptz(payload.date, payload.time);
   
-  if (getActiveBusinessId() === id) {
-    const nextId = filtered[0] ? filtered[0].id : '';
-    setActiveBusinessId(nextId);
+  const totalDuration = selectedServices.reduce((sum, s) => sum + s.duration, 0);
+  const startsAtDate = new Date(startsAt);
+  const endsAtDate = new Date(startsAtDate.getTime() + totalDuration * 60000);
+  const endsAt = endsAtDate.toISOString();
+
+  // 1. Insertar la cita
+  const { data: apt, error: aptError } = await supabase
+    .from('appointments')
+    .insert({
+      business_id: bizId,
+      professional_id: payload.professional_id || payload.prof,
+      client_name: payload.client,
+      client_phone: payload.phone,
+      client_email: payload.email || null,
+      starts_at: startsAt,
+      ends_at: endsAt,
+      status: payload.status || 'confirmada',
+      notes: payload.notes || '',
+      source: payload.source || 'panel',
+      total_price: payload.totalPrice || selectedServices.reduce((sum, s) => sum + s.price, 0)
+    })
+    .select()
+    .single();
+
+  if (aptError) {
+    console.error('[addAppointment] Error:', aptError.message);
+    throw aptError;
   }
-}
 
-// === CLIENT MANAGEMENT ===
+  // 2. Insertar los servicios vinculados
+  if (selectedServices && selectedServices.length > 0) {
+    const aptServices = selectedServices.map(s => ({
+      appointment_id: apt.id,
+      service_id: s.id,
+      service_name: s.name,
+      price_at_time: s.price,
+      duration_at_time: s.duration
+    }));
 
-export function getClients(businessId) {
-  const bizId = businessId || getActiveBusinessId();
-  const key = `citum_clients_${bizId}`;
-  const cached = localStorage.getItem(key);
-  if (!cached) {
-    // Seed default clients
-    const todayStr = new Intl.DateTimeFormat('fr-CA', {
-      timeZone: 'America/Bogota',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
-    }).format(new Date());
-    
-    const seedClients = [
-      {
-        id: 'c1',
-        phone: '3001234567',
-        name: 'Carlos Mendoza',
-        email: 'carlos.mendoza@email.com',
-        lastService: 'Corte Premium',
-        lastServiceDate: todayStr,
-        totalSpent: 35000,
-        totalVisits: 1,
-        businessId: bizId
-      },
-      {
-        id: 'c2',
-        phone: '3119876543',
-        name: 'Diana Turbay',
-        email: 'diana.turbay@email.com',
-        lastService: 'Perfilado de Cejas',
-        lastServiceDate: todayStr,
-        totalSpent: 12000,
-        totalVisits: 1,
-        businessId: bizId
-      },
-      {
-        id: 'c3',
-        phone: '3154567890',
-        name: 'Andrés López',
-        email: 'andres.lopez@email.com',
-        lastService: 'Afeitado de Barba',
-        lastServiceDate: todayStr,
-        totalSpent: 25000,
-        totalVisits: 1,
-        businessId: bizId
-      },
-      {
-        id: 'c4',
-        phone: '3209876543',
-        name: 'Mateo Restrepo',
-        email: 'mateo.restrepo@email.com',
-        lastService: 'Combo Imperial',
-        lastServiceDate: todayStr,
-        totalSpent: 55000,
-        totalVisits: 1,
-        businessId: bizId
-      }
-    ];
-    localStorage.setItem(key, JSON.stringify(seedClients));
-    return seedClients;
-  }
-  return JSON.parse(cached);
-}
+    const { error: srvError } = await supabase
+      .from('appointment_services')
+      .insert(aptServices);
 
-export function saveClients(clients, businessId) {
-  const bizId = businessId || getActiveBusinessId();
-  const key = `citum_clients_${bizId}`;
-  localStorage.setItem(key, JSON.stringify(clients));
-  window.dispatchEvent(new CustomEvent('citum_clients_changed', { detail: { clients, businessId: bizId } }));
-}
-
-export function findClientByPhone(phone, businessId) {
-  const clients = getClients(businessId);
-  const cleanPhone = phone.trim();
-  return clients.find(c => c.phone === cleanPhone) || null;
-}
-
-export function searchClientsByName(query, businessId) {
-  const clients = getClients(businessId);
-  if (!query) return [];
-  const lowerQuery = query.toLowerCase();
-  return clients.filter(c => c.name.toLowerCase().includes(lowerQuery) || c.phone.includes(lowerQuery));
-}
-
-export function upsertClientFromAppointment(appointment, businessId, isEdit = false, oldAppointment = null) {
-  const bizId = businessId || getActiveBusinessId();
-  let clients = getClients(bizId);
-
-  const phone = appointment.phone.trim();
-  const name = appointment.client.trim();
-  const email = (appointment.email || '').trim();
-  const service = appointment.service;
-  const date = appointment.date;
-  const price = appointment.totalPrice || 0;
-
-  if (isEdit && oldAppointment) {
-    const oldPhone = oldAppointment.phone.trim();
-    const oldPrice = oldAppointment.totalPrice || 0;
-
-    if (oldPhone !== phone) {
-      // 1. Descontar del cliente viejo
-      const oldIdx = clients.findIndex(c => c.phone === oldPhone);
-      if (oldIdx !== -1) {
-        clients[oldIdx].totalVisits = Math.max(0, clients[oldIdx].totalVisits - 1);
-        clients[oldIdx].totalSpent = Math.max(0, clients[oldIdx].totalSpent - oldPrice);
-      }
-      // 2. Sumar al cliente nuevo
-      const newIdx = clients.findIndex(c => c.phone === phone);
-      if (newIdx !== -1) {
-        clients[newIdx].name = name;
-        if (email) clients[newIdx].email = email;
-        clients[newIdx].totalVisits += 1;
-        clients[newIdx].totalSpent += price;
-        clients[newIdx].lastService = service;
-        clients[newIdx].lastServiceDate = date;
-      } else {
-        clients.push({
-          id: crypto.randomUUID(),
-          phone,
-          name,
-          email,
-          lastService: service,
-          lastServiceDate: date,
-          totalSpent: price,
-          totalVisits: 1,
-          businessId: bizId
-        });
-      }
-    } else {
-      // El teléfono es el mismo, solo ajustar los valores
-      const idx = clients.findIndex(c => c.phone === phone);
-      if (idx !== -1) {
-        clients[idx].name = name;
-        if (email) clients[idx].email = email;
-        clients[idx].totalSpent = Math.max(0, clients[idx].totalSpent - oldPrice + price);
-        clients[idx].lastService = service;
-        clients[idx].lastServiceDate = date;
-      } else {
-        clients.push({
-          id: crypto.randomUUID(),
-          phone,
-          name,
-          email,
-          lastService: service,
-          lastServiceDate: date,
-          totalSpent: price,
-          totalVisits: 1,
-          businessId: bizId
-        });
-      }
-    }
-  } else {
-    // Nueva cita
-    const idx = clients.findIndex(c => c.phone === phone);
-    if (idx !== -1) {
-      clients[idx].name = name;
-      if (email) clients[idx].email = email;
-      clients[idx].totalVisits += 1;
-      clients[idx].totalSpent += price;
-      clients[idx].lastService = service;
-      clients[idx].lastServiceDate = date;
-    } else {
-      clients.push({
-        id: crypto.randomUUID(),
-        phone,
-        name,
-        email,
-        lastService: service,
-        lastServiceDate: date,
-        totalSpent: price,
-        totalVisits: 1,
-        businessId: bizId
-      });
+    if (srvError) {
+      console.error('[addAppointment - services] Error:', srvError.message);
+      throw srvError;
     }
   }
 
-  saveClients(clients, bizId);
+  window.dispatchEvent(new CustomEvent('citum_appointments_changed', { detail: { businessId: bizId } }));
+  return apt;
 }
 
-export function removeClientAppointmentStats(appointment, businessId) {
-  if (!appointment) return;
-  const bizId = businessId || getActiveBusinessId();
-  const clients = getClients(bizId);
-  const phone = appointment.phone ? appointment.phone.trim() : '';
-  if (!phone) return;
+/**
+ * Actualiza una cita y reemplaza sus servicios vinculados.
+ */
+export async function updateAppointment(appointmentId, payload, selectedServices) {
+  const startsAt = parseColombiaToTimestamptz(payload.date, payload.time);
+  
+  const totalDuration = selectedServices.reduce((sum, s) => sum + s.duration, 0);
+  const startsAtDate = new Date(startsAt);
+  const endsAtDate = new Date(startsAtDate.getTime() + totalDuration * 60000);
+  const endsAt = endsAtDate.toISOString();
 
-  const idx = clients.findIndex(c => c.phone === phone);
-  if (idx !== -1) {
-    const price = appointment.totalPrice || 0;
-    clients[idx].totalVisits = Math.max(0, clients[idx].totalVisits - 1);
-    clients[idx].totalSpent = Math.max(0, clients[idx].totalSpent - price);
-    saveClients(clients, bizId);
+  // 1. Actualizar cita
+  const { error: aptError } = await supabase
+    .from('appointments')
+    .update({
+      professional_id: payload.professional_id || payload.prof,
+      client_name: payload.client,
+      client_phone: payload.phone,
+      client_email: payload.email || null,
+      starts_at: startsAt,
+      ends_at: endsAt,
+      status: payload.status,
+      notes: payload.notes || '',
+      total_price: payload.totalPrice || selectedServices.reduce((sum, s) => sum + s.price, 0)
+    })
+    .eq('id', appointmentId);
+
+  if (aptError) {
+    console.error('[updateAppointment] Error:', aptError.message);
+    throw aptError;
   }
-}
 
-// === SERVICE MANAGEMENT ===
+  // 2. Eliminar servicios antiguos e insertar los nuevos
+  const { error: delError } = await supabase
+    .from('appointment_services')
+    .delete()
+    .eq('appointment_id', appointmentId);
 
-const DEFAULT_SERVICES = [
-  { id: 'srv-1', name: 'Corte de Cabello Premium', desc: 'Lavado, corte personalizado, asesoría de estilo y peinado con cera.', price: 35000, duration: 40, active: true },
-  { id: 'srv-2', name: 'Afeitado de Barba Ritual', desc: 'Afeitado tradicional con toalla caliente, aceites esenciales y masaje facial.', price: 25000, duration: 30, active: true },
-  { id: 'srv-3', name: 'Perfilado de Cejas', desc: 'Diseño y limpieza de cejas con cera e hilo.', price: 12000, duration: 15, active: true },
-  { id: 'srv-4', name: 'Combo Imperial', desc: 'Corte de cabello + afeitado ritual + mascarilla facial hidratante.', price: 55000, duration: 75, active: true }
-];
-
-export function getServices(businessId) {
-  const bizId = businessId || getActiveBusinessId();
-  if (!bizId) return DEFAULT_SERVICES;
-  const key = `citum_services_${bizId}`;
-  const cached = localStorage.getItem(key);
-  if (!cached) {
-    localStorage.setItem(key, JSON.stringify(DEFAULT_SERVICES));
-    return DEFAULT_SERVICES;
+  if (delError) {
+    console.error('[updateAppointment - delete services] Error:', delError.message);
   }
-  return JSON.parse(cached);
-}
 
-export function saveServices(services, businessId) {
-  const bizId = businessId || getActiveBusinessId();
-  const key = `citum_services_${bizId}`;
-  localStorage.setItem(key, JSON.stringify(services));
-  window.dispatchEvent(new CustomEvent('citum_services_changed', { detail: { services, businessId: bizId } }));
-}
+  if (selectedServices && selectedServices.length > 0) {
+    const aptServices = selectedServices.map(s => ({
+      appointment_id: appointmentId,
+      service_id: s.id,
+      service_name: s.name,
+      price_at_time: s.price,
+      duration_at_time: s.duration
+    }));
 
-export function addService(businessId, newService) {
-  const services = getServices(businessId);
-  const serviceWithId = {
-    ...newService,
-    id: 'srv-' + Date.now().toString()
-  };
-  services.push(serviceWithId);
-  saveServices(services, businessId);
-  return serviceWithId;
-}
+    const { error: srvError } = await supabase
+      .from('appointment_services')
+      .insert(aptServices);
 
-export function updateService(businessId, serviceId, updatedService) {
-  const services = getServices(businessId);
-  const index = services.findIndex(s => s.id === serviceId);
-  if (index !== -1) {
-    services[index] = {
-      ...services[index],
-      ...updatedService
-    };
-    saveServices(services, businessId);
-    return services[index];
+    if (srvError) throw srvError;
   }
-  return null;
+
+  const bizId = getActiveBusinessId();
+  window.dispatchEvent(new CustomEvent('citum_appointments_changed', { detail: { businessId: bizId } }));
 }
 
-export function deleteService(businessId, serviceId) {
-  const services = getServices(businessId);
-  const filtered = services.filter(s => s.id !== serviceId);
-  saveServices(filtered, businessId);
+/**
+ * Elimina una cita de la base de datos.
+ */
+export async function deleteAppointment(appointmentId) {
+  const { error } = await supabase
+    .from('appointments')
+    .delete()
+    .eq('id', appointmentId);
+
+  if (error) {
+    console.error('[deleteAppointment] Error:', error.message);
+    throw error;
+  }
+
+  const bizId = getActiveBusinessId();
+  window.dispatchEvent(new CustomEvent('citum_appointments_changed', { detail: { businessId: bizId } }));
 }
 
+// ============================================================
+// GESTIÓN DE PROFESIONALES (PARA DROPDOWNS Y FILTROS)
+// ============================================================
+
+export async function fetchProfessionals(businessId) {
+  const bizId = businessId || getActiveBusinessId();
+  if (!bizId) return [];
+
+  const { data, error } = await supabase
+    .from('professionals')
+    .select(`
+      *,
+      professional_schedules (*),
+      professional_breaks (*)
+    `)
+    .eq('business_id', bizId)
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    console.error('[fetchProfessionals]', error.message);
+    return [];
+  }
+
+  return (data || []).map(p => ({
+    ...p,
+    active: p.is_active,
+    schedules: (p.professional_schedules || []).map(s => ({
+      day_of_week: s.day_of_week,
+      start_time: s.start_time,
+      end_time: s.end_time,
+      is_available: s.is_available,
+    })),
+    breaks: (p.professional_breaks || []).map(b => ({
+      id: b.id,
+      day_of_week: b.day_of_week,
+      start_time: b.start_time,
+      end_time: b.end_time,
+      label: b.label,
+    })),
+  }));
+}
+
+// ============================================================
+// GESTIÓN DE FACTURACIÓN (INVOICES)
+// ============================================================
+
+/**
+ * Carga el historial de facturas del negocio.
+ */
+export async function getInvoices(businessId) {
+  const bizId = businessId || getActiveBusinessId();
+  if (!bizId) return [];
+
+  const { data, error } = await supabase
+    .from('invoices')
+    .select(`
+      *,
+      invoice_items (*)
+    `)
+    .eq('business_id', bizId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('[getInvoices] Error:', error.message);
+    return [];
+  }
+
+  return data || [];
+}
+
+/**
+ * Crea una nueva factura generando su número correlativo automático.
+ */
+export async function createInvoice(businessId, payload, items) {
+  const bizId = businessId || getActiveBusinessId();
+  if (!bizId) throw new Error('No hay negocio activo');
+
+  const userId = await getUserId();
+
+  // Generar número correlativo
+  const { data: invNum, error: numError } = await supabase.rpc('generate_invoice_number', {
+    p_business_id: bizId,
+    p_type: payload.appointment_id ? 'CITA' : 'VCTA'
+  });
+
+  if (numError) {
+    console.error('[createInvoice] Error generating invoice number:', numError.message);
+    throw numError;
+  }
+
+  // 1. Insertar factura
+  const { data: invoice, error: invError } = await supabase
+    .from('invoices')
+    .insert({
+      business_id: bizId,
+      appointment_id: payload.appointment_id || null,
+      invoice_number: invNum,
+      client_name: payload.client_name,
+      client_phone: payload.client_phone || null,
+      client_email: payload.client_email || null,
+      subtotal: payload.subtotal,
+      discount: payload.discount || 0,
+      total: payload.total,
+      payment_method: payload.payment_method || 'efectivo',
+      payment_notes: payload.payment_notes || '',
+      status: payload.status || 'pagada',
+      created_by: userId
+    })
+    .select()
+    .single();
+
+  if (invError) {
+    console.error('[createInvoice] Error inserting invoice:', invError.message);
+    throw invError;
+  }
+
+  // 2. Insertar ítems
+  if (items && items.length > 0) {
+    const invoiceItems = items.map(it => ({
+      invoice_id: invoice.id,
+      service_id: it.service_id || null,
+      description: it.description,
+      qty: it.qty || 1,
+      unit_price: it.unit_price,
+      total: it.total
+    }));
+
+    const { error: itemsError } = await supabase
+      .from('invoice_items')
+      .insert(invoiceItems);
+
+    if (itemsError) {
+      console.error('[createInvoice] Error inserting items:', itemsError.message);
+      throw itemsError;
+    }
+  }
+
+  window.dispatchEvent(new CustomEvent('citum_invoices_changed', { detail: { businessId: bizId } }));
+  return { ...invoice, invoice_items: items };
+}
+
+// ============================================================
+// CONSULTAS PÚBLICAS (PORTAL DE RESERVAS - ANÓNIMO)
+// ============================================================
+
+/**
+ * Obtiene un negocio por su slug (Portal público).
+ */
+export async function getBusinessBySlug(slug) {
+  if (!slug) return null;
+  const { data, error } = await supabase
+    .from('businesses')
+    .select('*')
+    .eq('slug', slug)
+    .eq('is_paused', false)
+    .maybeSingle();
+
+  if (error) {
+    console.error('[getBusinessBySlug] Error:', error.message);
+    return null;
+  }
+  return data;
+}
+
+/**
+ * Obtiene todos los servicios activos de un negocio.
+ */
+export async function getActiveServices(businessId) {
+  if (!businessId) return [];
+  const { data, error } = await supabase
+    .from('services')
+    .select('*')
+    .eq('business_id', businessId)
+    .eq('is_active', true)
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    console.error('[getActiveServices] Error:', error.message);
+    return [];
+  }
+
+  return (data || []).map(s => ({
+    ...s,
+    duration: s.duration_min,
+    desc: s.description || '',
+    active: s.is_active,
+  }));
+}
+
+/**
+ * Obtiene los profesionales activos con horarios y breaks (Portal público).
+ */
+export async function getProfessionalsForBooking(businessId) {
+  if (!businessId) return [];
+  const { data, error } = await supabase
+    .from('professionals')
+    .select(`
+      *,
+      professional_schedules (*),
+      professional_breaks (*)
+    `)
+    .eq('business_id', businessId)
+    .eq('is_active', true)
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    console.error('[getProfessionalsForBooking]', error.message);
+    return [];
+  }
+
+  return (data || []).map(p => ({
+    ...p,
+    active: p.is_active,
+    schedules: (p.professional_schedules || []).map(s => ({
+      day_of_week: s.day_of_week,
+      start_time: s.start_time,
+      end_time: s.end_time,
+      is_available: s.is_available,
+    })),
+    breaks: (p.professional_breaks || []).map(b => ({
+      id: b.id,
+      day_of_week: b.day_of_week,
+      start_time: b.start_time,
+      end_time: b.end_time,
+      label: b.label,
+    })),
+  }));
+}
 

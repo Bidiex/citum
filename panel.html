@@ -99,12 +99,12 @@
         </div>
         
         <div class="header-right">
-          <div class="profile-info">
-            <span class="profile-badge">Pro</span>
-            <div class="profile-avatar">
+          <div class="profile-info" id="header-profile-info">
+            <span class="profile-badge" id="header-profile-badge">Pro</span>
+            <div class="profile-avatar" id="header-profile-avatar">
               <i data-lucide="user" size="18"></i>
             </div>
-            <span class="profile-name">Álvaro de Alba</span>
+            <span class="profile-name" id="header-profile-name">Álvaro de Alba</span>
           </div>
         </div>
       </header>
@@ -123,6 +123,28 @@
 
     </div>
   </div>
+
+  <!-- Guard de autenticación: redirige al login si no hay sesión -->
+  <script type="module">
+    import { auth } from '/src/core/auth.js';
+
+    // Verificar sesión al cargar
+    auth.getSession().then(({ session }) => {
+      if (!session) {
+        window.location.replace('/login.html');
+      }
+    });
+
+    // Logout real
+    const logoutBtn = document.getElementById('btn-logout');
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        await auth.logout();
+        window.location.replace('/login.html');
+      });
+    }
+  </script>
 
   <!-- Entrypoint Router JavaScript -->
   <script type="module" src="/src/panel.js"></script>

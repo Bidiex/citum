@@ -1,14 +1,17 @@
-// supabase.js — Cliente Supabase (Simulado)
+// supabase.js — Cliente Supabase real (singleton)
+import { createClient } from '@supabase/supabase-js';
 
-// Por ahora, se omite Supabase como se solicitó para realizar pruebas en local.
-export const supabase = {
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  throw new Error('[Citum] Faltan VITE_SUPABASE_URL o VITE_SUPABASE_ANON_KEY en el .env');
+}
+
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
-    getSession: async () => ({ data: { session: null }, error: null }),
-    onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } })
-  },
-  from: () => ({
-    select: () => ({
-      eq: () => Promise.resolve({ data: [], error: null })
-    })
-  })
-};
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+  }
+});

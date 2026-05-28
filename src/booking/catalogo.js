@@ -1,20 +1,22 @@
-// catalogo.js — Módulo del paso 1: Catálogo de Servicios
-import { getServices, getBusinesses } from '../utils/businessState.js';
+// catalogo.js — Módulo del paso 1: Catálogo de Servicios (conectado a Supabase)
+import { getActiveServices } from '../utils/businessState.js';
 
-export function init(container, state, actions) {
-  // Obtener negocio activo por slug de URL
-  const urlParams = new URLSearchParams(window.location.search);
-  const bizSlug = urlParams.get('b');
-  const businesses = getBusinesses();
+export async function init(container, state, actions) {
+  const bizId = state.business ? state.business.id : '';
   
-  let activeBiz = businesses[0]; // Fallback al primero
-  if (bizSlug) {
-    const found = businesses.find(b => b.slug === bizSlug);
-    if (found) activeBiz = found;
+  // Mostrar cargando
+  container.innerHTML = `
+    <div class="booking-loading-placeholder" style="text-align: center; padding: var(--space-8);">
+      <i data-lucide="loader" class="loader-icon anim-spin" style="color: var(--biz-accent);"></i>
+      <h3 style="margin-top: 15px;">Cargando servicios...</h3>
+    </div>
+  `;
+  if (typeof lucide !== 'undefined') {
+    lucide.createIcons({ node: container });
   }
 
-  const bizId = activeBiz ? activeBiz.id : '';
-  const mockServices = getServices(bizId).filter(srv => srv.active !== false);
+  const mockServices = await getActiveServices(bizId);
+
 
   // Renderizar la vista
   container.innerHTML = `

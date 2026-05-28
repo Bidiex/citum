@@ -1,15 +1,81 @@
-// seleccion.js — Módulo del paso 2: Selección de Profesional, Fecha y Hora
-import { getColombiaDate } from '../utils/format.js';
+// seleccion.js — Módulo del paso 2: Selección de Profesional, Fecha y Hora (conectado a Supabase)
+import { getColombiaDate, parseTimestamptzToColombia } from '../utils/format.js';
+import { getProfessionalsForBooking } from '../utils/businessState.js';
+import { supabase } from '../core/supabase.js';
 
-export function init(container, state, actions) {
-  // Profesionales de prueba
+function parseTimeString(timeStr) {
+  if (!timeStr) return 0;
+  const [time, modifier] = timeStr.split(' ');
+  let [hours, minutes] = time.split(':').map(Number);
+  if (modifier === 'PM' && hours < 12) hours += 12;
+  if (modifier === 'AM' && hours === 12) hours = 0;
+  return hours * 60 + minutes;
+}
+
+async function fetchAvailableSlots(profId, dateStr, totalDuration, professionals) {
+  if (profId !== 'prof-1') {
+    const { data, error } = await supabase.rpc('get_available_slots', {
+      p_professional_id: profId,
+      p_date: dateStr,
+      p_duration_min: totalDuration
+    });
+    if (error) {
+      console.error('[fetchAvailableSlots] Error:', error.message);
+      return [];
+    }
+    return (data || []).map(slot => {
+      const { time } = parseTimestamptzToColombia(slot.slot_start);
+      return time;
+    });
+  } else {
+    // Si es "Cualquiera", obtener la unión de todos los profesionales activos
+    const promises = professionals.filter(p => p.id !== 'prof-1').map(p => 
+      supabase.rpc('get_available_slots', {
+        p_professional_id: p.id,
+        p_date: dateStr,
+        p_duration_min: totalDuration
+      })
+    );
+    
+    const results = await Promise.all(promises);
+    const slotSet = new Set();
+    
+    results.forEach(res => {
+      if (res.data) {
+        res.data.forEach(slot => {
+          const { time } = parseTimestamptzToColombia(slot.slot_start);
+          slotSet.add(time);
+        });
+      }
+    });
+    
+    return Array.from(slotSet).sort((a, b) => {
+      return parseTimeString(a) - parseTimeString(b);
+    });
+  }
+}
+
+export async function init(container, state, actions) {
+  const bizId = state.business ? state.business.id : '';
+
+  // Mostrar loading
+  container.innerHTML = `
+    <div class="booking-loading-placeholder" style="text-align: center; padding: var(--space-8);">
+      <i data-lucide="loader" class="loader-icon anim-spin" style="color: var(--biz-accent);"></i>
+      <h3 style="margin-top: 15px;">Cargando horarios y profesionales...</h3>
+    </div>
+  `;
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+
+  // Cargar profesionales de la DB
+  const professionalsList = await getProfessionalsForBooking(bizId);
+
   const mockProfessionals = [
     { id: 'prof-1', name: 'Cualquiera (Cualquier Profesional)', role: 'Asignación automática' },
-    { id: 'prof-2', name: 'Juan Pérez', role: 'Barbero Senior' },
-    { id: 'prof-3', name: 'Carlos Gómez', role: 'Estilista & Colorista' }
+    ...professionalsList
   ];
 
-  // Fechas de prueba (próximos 5 días)
+  // Fechas de la jornada
   const getUpcomingDates = () => {
     const dates = [];
     const daysOfWeek = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
@@ -19,7 +85,6 @@ export function init(container, state, actions) {
       const d = new Date();
       d.setDate(d.getDate() + i);
       const colDateStr = getColombiaDate(d);
-      // Crear una fecha local fija con la fecha de Colombia para extraer día y mes correctos
       const colD = new Date(colDateStr + 'T00:00:00');
       
       dates.push({
@@ -34,16 +99,11 @@ export function init(container, state, actions) {
 
   const dates = getUpcomingDates();
 
-  // Horarios de prueba
-  const mockTimeSlots = [
-    '09:00 AM', '10:00 AM', '11:00 AM', '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM', '05:00 PM'
-  ];
-
-  // Asignar valores por defecto si no existen en el estado
+  // Valores predeterminados
   if (!state.selectedProfessional) state.selectedProfessional = mockProfessionals[0];
   if (!state.selectedDate) state.selectedDate = dates[0].isoString;
 
-  // Renderizar la vista
+  // Renderizar Estructura
   container.innerHTML = `
     <div class="flow-view">
       <div>
@@ -64,7 +124,7 @@ export function init(container, state, actions) {
                 </div>
                 <div>
                   <div class="prof-name">${prof.name}</div>
-                  <div class="prof-role">${prof.role}</div>
+                  <div class="prof-role">${prof.role || 'Profesional'}</div>
                 </div>
               </div>
             `;
@@ -93,14 +153,7 @@ export function init(container, state, actions) {
       <div class="scheduling-section" style="margin-top: var(--space-6);">
         <span class="scheduling-label">3. Selecciona la hora</span>
         <div class="time-slots-grid">
-          ${mockTimeSlots.map(time => {
-            const isSelected = state.selectedTimeSlot === time;
-            return `
-              <button class="time-slot-btn ${isSelected ? 'selected' : ''}" data-time="${time}">
-                ${time}
-              </button>
-            `;
-          }).join('')}
+          <!-- Se cargan por AJAX -->
         </div>
       </div>
 
@@ -112,7 +165,7 @@ export function init(container, state, actions) {
     </div>
   `;
 
-  // Estilos rápidos para esta sección (para evitar inflar booking.css con clases muy específicas)
+  // Estilos
   const style = document.createElement('style');
   style.id = 'scheduling-styles';
   style.innerHTML = `
@@ -253,54 +306,106 @@ export function init(container, state, actions) {
     }
   `;
   
-  // Evitar duplicar estilos
   const oldStyles = document.getElementById('scheduling-styles');
   if (oldStyles) oldStyles.remove();
   document.head.appendChild(style);
 
-  // Inicializar iconos
   if (typeof lucide !== 'undefined') {
     lucide.createIcons();
   }
 
-  // Enlazar eventos de Profesionales
+  // Duración total requerida
+  const totalDuration = state.selectedServices.reduce((sum, s) => sum + s.duration, 0);
+
+  // Recarga de horarios
+  const refreshSlots = async () => {
+    const timeSlotsGrid = container.querySelector('.time-slots-grid');
+    if (!timeSlotsGrid) return;
+
+    timeSlotsGrid.innerHTML = `
+      <div style="grid-column: 1 / -1; text-align: center; padding: var(--space-4);">
+        <i data-lucide="loader" class="anim-spin" style="color: var(--biz-accent); display: inline-block;"></i>
+        <span style="margin-left: 8px;">Buscando horarios disponibles...</span>
+      </div>
+    `;
+    if (typeof lucide !== 'undefined') lucide.createIcons({ node: timeSlotsGrid });
+
+    const slots = await fetchAvailableSlots(
+      state.selectedProfessional.id,
+      state.selectedDate,
+      totalDuration,
+      mockProfessionals
+    );
+
+    if (slots.length === 0) {
+      timeSlotsGrid.innerHTML = `
+        <div style="grid-column: 1 / -1; text-align: center; padding: var(--space-6); color: var(--text-muted);">
+          <i data-lucide="calendar-x" size="24" style="margin-bottom: 8px; color: #ff5a7a;"></i>
+          <p>No hay turnos disponibles para esta fecha/profesional.</p>
+        </div>
+      `;
+      if (typeof lucide !== 'undefined') lucide.createIcons({ node: timeSlotsGrid });
+    } else {
+      timeSlotsGrid.innerHTML = slots.map(time => {
+        const isSelected = state.selectedTimeSlot === time;
+        return `
+          <button class="time-slot-btn ${isSelected ? 'selected' : ''}" data-time="${time}">
+            ${time}
+          </button>
+        `;
+      }).join('');
+    }
+
+    // Enlazar horas
+    timeSlotsGrid.querySelectorAll('.time-slot-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.selectedTimeSlot = btn.getAttribute('data-time');
+        timeSlotsGrid.querySelectorAll('.time-slot-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+
+        const nextBtn = document.getElementById('btn-next-step-2');
+        if (nextBtn) nextBtn.removeAttribute('disabled');
+      });
+    });
+
+    const nextBtn = document.getElementById('btn-next-step-2');
+    if (nextBtn) {
+      if (slots.includes(state.selectedTimeSlot)) {
+        nextBtn.removeAttribute('disabled');
+      } else {
+        state.selectedTimeSlot = null;
+        nextBtn.setAttribute('disabled', 'true');
+      }
+    }
+  };
+
+  // Enlazar profesionales
   container.querySelectorAll('.prof-card').forEach(card => {
-    card.addEventListener('click', () => {
+    card.addEventListener('click', async () => {
       const id = card.getAttribute('data-id');
       state.selectedProfessional = mockProfessionals.find(p => p.id === id);
       
       container.querySelectorAll('.prof-card').forEach(c => c.classList.remove('selected'));
       card.classList.add('selected');
+      await refreshSlots();
     });
   });
 
-  // Enlazar eventos de Fechas
+  // Enlazar fechas
   container.querySelectorAll('.date-carousel-item').forEach(item => {
-    item.addEventListener('click', () => {
+    item.addEventListener('click', async () => {
       state.selectedDate = item.getAttribute('data-date');
       
       container.querySelectorAll('.date-carousel-item').forEach(i => i.classList.remove('selected'));
       item.classList.add('selected');
+      await refreshSlots();
     });
   });
 
-  // Enlazar eventos de Horas
-  container.querySelectorAll('.time-slot-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      state.selectedTimeSlot = btn.getAttribute('data-time');
-      
-      container.querySelectorAll('.time-slot-btn').forEach(b => b.classList.remove('selected'));
-      btn.classList.add('selected');
+  // Cargar primera vez
+  await refreshSlots();
 
-      // Habilitar botón de continuar
-      const nextBtn = document.getElementById('btn-next-step-2');
-      if (nextBtn) {
-        nextBtn.removeAttribute('disabled');
-      }
-    });
-  });
-
-  // Eventos de botones
+  // Enlazar botones
   container.querySelector('#btn-back-step-2').addEventListener('click', () => actions.back());
   container.querySelector('#btn-next-step-2').addEventListener('click', () => actions.next());
 }

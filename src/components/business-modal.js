@@ -339,15 +339,19 @@ export function openBusinessModal({ mode = 'create', businessData = null, onSave
         confirmLabel: 'Sí, eliminar negocio',
         cancelLabel: 'Cancelar',
         confirmVariant: 'danger',
-        onConfirm: () => {
-          deleteBusiness(businessData.id);
-          showToast({
-            title: 'Negocio eliminado',
-            subtitle: `El negocio "${name}" ha sido borrado de tu cuenta.`,
-            type: 'success'
-          });
-          closeDrawer();
-          if (onSave) onSave();
+        onConfirm: async () => {
+          try {
+            await deleteBusiness(businessData.id);
+            showToast({
+              title: 'Negocio eliminado',
+              subtitle: `El negocio "${name}" ha sido borrado de tu cuenta.`,
+              type: 'success'
+            });
+            closeDrawer();
+            if (onSave) onSave();
+          } catch (err) {
+            showToast({ title: 'Error al eliminar', subtitle: err.message, type: 'error' });
+          }
         }
       });
     });
@@ -395,18 +399,30 @@ export function openBusinessModal({ mode = 'create', businessData = null, onSave
       }
     }
 
-    if (mode === 'create') {
-      payload.slug = slugify(nameInput.value.trim());
-      addBusiness(payload);
-    } else {
-      updateBusiness(businessData.id, payload);
-    }
+    // Deshabilitar botón durante guardado
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Guardando...';
 
-    // Ejecutar callback si existe
-    if (onSave) {
-      onSave();
-    }
+    try {
+      if (mode === 'create') {
+        payload.slug = slugify(nameInput.value.trim());
+        await addBusiness(payload);
+      } else {
+        await updateBusiness(businessData.id, payload);
+      }
 
-    closeDrawer();
+      showToast({
+        title: mode === 'create' ? 'Negocio creado' : 'Cambios guardados',
+        subtitle: payload.name,
+        type: 'success'
+      });
+
+      closeDrawer();
+      if (onSave) onSave();
+    } catch (err) {
+      saveBtn.disabled = false;
+      saveBtn.textContent = mode === 'create' ? 'Crear Negocio' : 'Guardar Cambios';
+      showToast({ title: 'Error al guardar', subtitle: err.message || 'Intenta de nuevo', type: 'error' });
+    }
   });
 }

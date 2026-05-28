@@ -5,6 +5,8 @@ import {
   setActiveBusinessId, 
   getActiveBusiness 
 } from './utils/businessState.js';
+import { auth } from './core/auth.js';
+import { supabase } from './core/supabase.js';
 
 document.addEventListener('DOMContentLoaded', () => {
   // Inicializar Iconos Lucide
@@ -17,15 +19,17 @@ document.addEventListener('DOMContentLoaded', () => {
   const bizOptions = document.getElementById('selector-options');
   const bizNameSpan = document.getElementById('current-business-name');
 
-  const renderBusinessSelector = () => {
+  const renderBusinessSelector = async () => {
     if (!bizOptions) return;
     
-    const businesses = getBusinesses();
+    const businesses = await getBusinesses();
     const activeId = getActiveBusinessId();
     const activeBiz = getActiveBusiness();
     
     if (bizNameSpan && activeBiz) {
       bizNameSpan.textContent = activeBiz.name;
+    } else if (bizNameSpan && businesses.length === 0) {
+      bizNameSpan.textContent = 'Sin negocio';
     }
     
     let html = '';
@@ -75,8 +79,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const { openBusinessModal } = await import('./components/business-modal.js');
         openBusinessModal({
           mode: 'create',
-          onSave: () => {
-            renderBusinessSelector();
+          onSave: async () => {
+            await renderBusinessSelector();
             // Refrescar sección activa
             const activeNav = document.querySelector('.sidebar-item.active');
             if (activeNav) {
@@ -109,8 +113,8 @@ document.addEventListener('DOMContentLoaded', () => {
     renderBusinessSelector();
   });
 
-  window.addEventListener('citum_active_business_changed', () => {
-    renderBusinessSelector();
+  window.addEventListener('citum_active_business_changed', async () => {
+    await renderBusinessSelector();
     // Recargar sección activa al cambiar negocio
     const activeNav = document.querySelector('.sidebar-item.active');
     if (activeNav) {
@@ -118,6 +122,7 @@ document.addEventListener('DOMContentLoaded', () => {
       navigate(section);
     }
   });
+
 
   // 2. Menú de Navegación Lateral (Sidebar SPA)
   const navItems = document.querySelectorAll('.sidebar-item:not(.logout-btn)');
@@ -209,6 +214,41 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
+  // Función para cargar los datos del perfil del usuario autenticado
+  const loadProfileInfo = async () => {
+    try {
+      const { session } = await auth.getSession();
+      if (!session || !session.user) return;
+
+      const { data: profile, error } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('id', session.user.id)
+        .single();
+
+      if (error) {
+        console.error('[loadProfileInfo] Error:', error.message);
+        return;
+      }
+
+      if (profile) {
+        const nameEl = document.getElementById('header-profile-name');
+        const badgeEl = document.getElementById('header-profile-badge');
+
+        if (nameEl) nameEl.textContent = profile.full_name || 'Usuario';
+        if (badgeEl) {
+          const plan = profile.plan_id || 'esencial';
+          badgeEl.textContent = plan.charAt(0).toUpperCase() + plan.slice(1);
+        }
+      }
+    } catch (err) {
+      console.error('[loadProfileInfo] Exception:', err);
+    }
+  };
+
   // Cargar sección por defecto (agenda)
   navigate('agenda');
+
+  // Cargar información de perfil
+  loadProfileInfo();
 });

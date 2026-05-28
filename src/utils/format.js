@@ -56,3 +56,53 @@ export function getColombiaTimeParts() {
   
   return { hours, minutes };
 }
+
+/**
+ * Convierte un timestamptz ISO (UTC) a la fecha (YYYY-MM-DD) y la hora ('HH:MM AM/PM') en la zona horaria de Colombia.
+ */
+export function parseTimestamptzToColombia(isoString) {
+  if (!isoString) return { date: '', time: '' };
+  const d = new Date(isoString);
+  
+  // Fecha en Colombia: YYYY-MM-DD
+  const dateStr = new Intl.DateTimeFormat('fr-CA', {
+    timeZone: 'America/Bogota',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(d);
+  
+  // Hora en Colombia (HH:MM AM/PM)
+  const timeStrRaw = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Bogota',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
+  }).format(d);
+  
+  // Normalizar formato a "HH:MM AM/PM"
+  let timeStr = timeStrRaw.replace(/\s+/g, ' ').toUpperCase();
+  const parts = timeStr.match(/^(\d+):(\d+)\s*(AM|PM)$/);
+  if (parts) {
+    const hr = parts[1].padStart(2, '0');
+    const min = parts[2];
+    const ampm = parts[3];
+    timeStr = `${hr}:${min} ${ampm}`;
+  }
+  
+  return { date: dateStr, time: timeStr };
+}
+
+/**
+ * Convierte una fecha (YYYY-MM-DD) y una hora ('HH:MM AM/PM') en Colombia a un timestamptz ISO de UTC.
+ */
+export function parseColombiaToTimestamptz(dateStr, timeStr) {
+  const [time, modifier] = timeStr.split(' ');
+  let [hours, minutes] = time.split(':').map(Number);
+  if (modifier === 'PM' && hours < 12) hours += 12;
+  if (modifier === 'AM' && hours === 12) hours = 0;
+  
+  // Colombia es UTC-5 todo el año
+  const isoStr = `${dateStr}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00-05:00`;
+  return new Date(isoStr).toISOString();
+}

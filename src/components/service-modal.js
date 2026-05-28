@@ -176,16 +176,20 @@ export function openServiceModal({ mode = 'create', serviceData = null, onSave =
         confirmLabel: 'Sí, Eliminar',
         cancelLabel: 'Cancelar',
         confirmVariant: 'danger',
-        onConfirm: () => {
-          const bizId = getActiveBusinessId();
-          deleteService(bizId, serviceData.id);
-          showToast({
-            title: 'Servicio eliminado',
-            subtitle: `El servicio "${serviceData.name}" ha sido eliminado.`,
-            type: 'success'
-          });
-          if (onSave) onSave();
-          closeDrawer();
+        onConfirm: async () => {
+          try {
+            const bizId = getActiveBusinessId();
+            await deleteService(bizId, serviceData.id);
+            showToast({
+              title: 'Servicio eliminado',
+              subtitle: `El servicio "${serviceData.name}" ha sido eliminado.`,
+              type: 'success'
+            });
+            if (onSave) onSave();
+            closeDrawer();
+          } catch (err) {
+            showToast({ title: 'Error al eliminar', subtitle: err.message, type: 'error' });
+          }
         }
       });
     });
@@ -234,28 +238,35 @@ export function openServiceModal({ mode = 'create', serviceData = null, onSave =
       active: activeInput.value === 'true'
     };
 
+    // Deshabilitar botón durante guardado
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Guardando...';
+
     const bizId = getActiveBusinessId();
 
-    if (mode === 'create') {
-      addService(bizId, payload);
-      showToast({
-        title: 'Servicio creado',
-        subtitle: `El servicio "${payload.name}" ha sido creado con éxito.`,
-        type: 'success'
-      });
-    } else {
-      updateService(bizId, serviceData.id, payload);
-      showToast({
-        title: 'Servicio actualizado',
-        subtitle: `El servicio "${payload.name}" ha sido actualizado con éxito.`,
-        type: 'success'
-      });
-    }
+    try {
+      if (mode === 'create') {
+        await addService(bizId, payload);
+        showToast({
+          title: 'Servicio creado',
+          subtitle: `El servicio "${payload.name}" ha sido creado con éxito.`,
+          type: 'success'
+        });
+      } else {
+        await updateService(bizId, serviceData.id, payload);
+        showToast({
+          title: 'Servicio actualizado',
+          subtitle: `El servicio "${payload.name}" ha sido actualizado con éxito.`,
+          type: 'success'
+        });
+      }
 
-    if (onSave) {
-      onSave();
+      if (onSave) onSave();
+      closeDrawer();
+    } catch (err) {
+      saveBtn.disabled = false;
+      saveBtn.textContent = mode === 'create' ? 'Crear Servicio' : 'Guardar Cambios';
+      showToast({ title: 'Error al guardar', subtitle: err.message || 'Intenta de nuevo', type: 'error' });
     }
-
-    closeDrawer();
   });
 }

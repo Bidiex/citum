@@ -1,11 +1,36 @@
-// servicios.js — Módulo de Servicios del Panel
+// servicios.js — Módulo de Servicios del Panel (conectado a Supabase)
 import { getServices, getActiveBusinessId } from '../utils/businessState.js';
 import { openServiceModal } from '../components/service-modal.js';
 
-export function init(container) {
-  const render = () => {
-    const activeBizId = getActiveBusinessId();
-    const services = getServices(activeBizId);
+export async function init(container) {
+  const activeBizId = getActiveBusinessId();
+
+  if (!activeBizId) {
+    container.innerHTML = `
+      <div class="view-container">
+        <div class="crm-empty-state">
+          <i data-lucide="store" size="48" style="stroke-width:1.5; color:var(--accent-neon);"></i>
+          <h3>Sin negocio activo</h3>
+          <p>Selecciona o crea un negocio primero desde la sección "Negocios".</p>
+        </div>
+      </div>
+    `;
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+    return;
+  }
+
+  // Loading
+  container.innerHTML = `
+    <div class="view-container">
+      <div style="display:flex; align-items:center; justify-content:center; padding: var(--space-12);">
+        <i data-lucide="loader" class="anim-spin" style="color:var(--accent-neon);"></i>
+      </div>
+    </div>
+  `;
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+
+  const render = async () => {
+    const services = await getServices(activeBizId);
 
     container.innerHTML = `
       <div class="view-container">
@@ -39,7 +64,7 @@ export function init(container) {
                       font-weight: 800; 
                       color: var(--accent-neon);
                       flex-shrink: 0;
-                    ">COP $${srv.price.toLocaleString('es-CO')}</span>
+                    ">COP $${Number(srv.price).toLocaleString('es-CO')}</span>
                   </div>
                   ${srv.desc ? `
                     <p style="font-size: var(--text-xs); color: var(--text-muted); margin-bottom: var(--space-3); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;" title="${srv.desc}">
@@ -61,38 +86,28 @@ export function init(container) {
       </div>
     `;
 
-    // Inicializar iconos
-    if (typeof lucide !== 'undefined') {
-      lucide.createIcons();
-    }
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 
-    // Vincular creación de servicio
+    // Crear servicio
     const addBtn = container.querySelector('#btn-add-srv');
     if (addBtn) {
       addBtn.addEventListener('click', () => {
-        openServiceModal({
-          mode: 'create',
-          onSave: render
-        });
+        openServiceModal({ mode: 'create', onSave: render });
       });
     }
 
-    // Vincular edición de servicio
+    // Editar servicio
     container.querySelectorAll('.edit-srv-link').forEach(link => {
       link.addEventListener('click', (e) => {
         e.preventDefault();
         const srvId = link.getAttribute('data-id');
         const srv = services.find(s => s.id === srvId);
         if (srv) {
-          openServiceModal({
-            mode: 'edit',
-            serviceData: srv,
-            onSave: render
-          });
+          openServiceModal({ mode: 'edit', serviceData: srv, onSave: render });
         }
       });
     });
   };
 
-  render();
+  await render();
 }

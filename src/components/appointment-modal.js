@@ -1,7 +1,7 @@
 // appointment-modal.js — Componente Modal de Nueva/Editar Cita para Recepcionistas
 import { showToast } from '../utils/toast.js';
 import { getColombiaTodayStr, getColombiaTimeParts } from '../utils/format.js';
-import { searchClientsByName, getActiveBusinessId, getServices } from '../utils/businessState.js';
+import { searchClientsByName, getActiveBusinessId, getServices, fetchProfessionals } from '../utils/businessState.js';
 
 const TIME_SLOTS = [
   '08:00 AM', '08:30 AM', '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM',
@@ -30,9 +30,18 @@ function formatTimeString(minutesSinceMidnight) {
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')} ${period}`;
 }
 
-export function openAppointmentModal({ appointments = [], onSave = null, mode = 'create', appointmentData = null } = {}) {
+export async function openAppointmentModal({ appointments = [], onSave = null, mode = 'create', appointmentData = null } = {}) {
   const bizId = getActiveBusinessId();
-  const SERVICES = getServices(bizId).filter(s => s.active !== false);
+  
+  // Carga asíncrona de servicios y profesionales
+  const [servicesData, professionalsData] = await Promise.all([
+    getServices(bizId),
+    fetchProfessionals(bizId)
+  ]);
+  
+  const SERVICES = servicesData.filter(s => s.active !== false);
+  const professionals = professionalsData.filter(p => p.active !== false);
+  
   const SERVICE_DURATIONS = {};
   SERVICES.forEach(s => {
     SERVICE_DURATIONS[s.name] = s.duration;
@@ -155,8 +164,9 @@ export function openAppointmentModal({ appointments = [], onSave = null, mode = 
           </div>
           <div class="form-group" id="prof-select-container">
             <select class="form-input" id="apt-prof-select" ${isNextFreeMode ? 'disabled' : ''}>
-              <option value="Juan Pérez"${mode === 'edit' && appointmentData && appointmentData.prof === 'Juan Pérez' ? ' selected' : ''}>Juan Pérez</option>
-              <option value="Carlos Gómez"${mode === 'edit' && appointmentData && appointmentData.prof === 'Carlos Gómez' ? ' selected' : ''}>Carlos Gómez</option>
+              ${professionals.map(p => `
+                <option value="${p.id}"${mode === 'edit' && appointmentData && appointmentData.professional_id === p.id ? ' selected' : ''}>${p.name}</option>
+              `).join('')}
             </select>
           </div>
           <div class="prof-context-hint" id="prof-hint-box">
@@ -262,10 +272,37 @@ export function openAppointmentModal({ appointments = [], onSave = null, mode = 
       if (!query || query.length < 2) return;
 
       const bizId = getActiveBusinessId();
-      const matches = searchClientsByName(query, bizId);
-      if (matches.length === 0) return;
+      searchClientsByName(query, bizId).then(matches => {
+        if (!matches || matches.length === 0) return;
 
-      dropdown = document.createElement('div');
+        dropdown = document.createElement('div');
+        dropdown.className = 'autocomplete-dropdown';
+        
+        dropdown.innerHTML = matches.map(c => `
+          <div class="autocomplete-item" data-name="${c.name}" data-phone="${c.phone}" data-email="${c.email || ''}">
+            <span class="autocomplete-item-name">${c.name}</span>
+            <span class="autocomplete-item-phone">${c.phone}</span>
+          </div>
+        `).join('');
+
+        inputEl.parentNode.appendChild(dropdown);
+
+        // Vincular eventos de click a los items
+        dropdown.querySelectorAll('.autocomplete-item').forEach(item => {
+          item.addEventListener('click', () => {
+            nameInput.value = item.getAttribute('data-name');
+            phoneInput.value = item.getAttribute('data-phone');
+            emailInput.value = item.getAttribute('data-email');
+            
+            // Disparar evento input
+            nameInput.dispatchEvent(new Event('input'));
+            phoneInput.dispatchEvent(new Event('input'));
+            emailInput.dispatchEvent(new Event('input'));
+
+            closeDropdown();
+          });
+        });
+      });
       dropdown.className = 'autocomplete-dropdown';
       
       dropdown.innerHTML = matches.map(c => `
@@ -366,13 +403,12 @@ export function openAppointmentModal({ appointments = [], onSave = null, mode = 
   }
 
   // Helper: Comprobar solapamiento
-  function checkOverlap(profName, slotStart, duration, dateVal) {
-    // Si la fecha coincide con la del listado o es hoy
+  function checkOverlap(profId, slotStart, duration, dateVal) {
     return appointments.some(apt => {
-      // Excluir la cita en edición de su propia comprobación de solapamiento
-      if (mode === 'edit' && appointmentData && apt === appointmentData) return false;
+      // Excluir la cita en edición
+      if (mode === 'edit' && appointmentData && apt.id === appointmentData.id) return false;
       if (apt.date !== dateVal) return false;
-      if (apt.prof !== profName) return false;
+      if (apt.professional_id !== profId) return false;
       const range = getAppointmentTimeRange(apt);
       return slotStart < range.end && (slotStart + duration) > range.start;
     });
@@ -416,46 +452,53 @@ export function openAppointmentModal({ appointments = [], onSave = null, mode = 
     if (isNextFreeMode) {
       if (selectedTimeSlot) {
         const slotStart = parseTimeString(selectedTimeSlot);
-        const juanBusy = checkOverlap('Juan Pérez', slotStart, totalDuration, dateVal);
-        const carlosBusy = checkOverlap('Carlos Gómez', slotStart, totalDuration, dateVal);
+        let assignedProf = null;
+        let bestEndTime = Infinity;
 
-        if (!juanBusy) {
-          profSelect.value = 'Juan Pérez';
-          profHintText.textContent = '✨ Juan Pérez está libre en este horario.';
-        } else if (!carlosBusy) {
-          profSelect.value = 'Carlos Gómez';
-          profHintText.textContent = '✨ Carlos Gómez está libre en este horario.';
-        } else {
-          // Ambos ocupados: ver quién se libera antes
-          const juanEnd = getEarliestFreeAfter(slotStart, 'Juan Pérez', dateVal);
-          const carlosEnd = getEarliestFreeAfter(slotStart, 'Carlos Gómez', dateVal);
-          
-          if (juanEnd <= carlosEnd) {
-            profSelect.value = 'Juan Pérez';
-            profHintText.textContent = `⚠️ Ambos ocupados. Juan Pérez se libera antes (a las ${formatTimeString(juanEnd)}).`;
+        for (const prof of professionals) {
+          const isBusy = checkOverlap(prof.id, slotStart, totalDuration, dateVal);
+          if (!isBusy) {
+            assignedProf = prof;
+            break;
           } else {
-            profSelect.value = 'Carlos Gómez';
-            profHintText.textContent = `⚠️ Ambos ocupados. Carlos Gómez se libera antes (a las ${formatTimeString(carlosEnd)}).`;
+            const freeTime = getEarliestFreeAfter(slotStart, prof.id, dateVal);
+            if (freeTime < bestEndTime) {
+              bestEndTime = freeTime;
+              assignedProf = prof;
+            }
           }
+        }
+
+        if (assignedProf) {
+          profSelect.value = assignedProf.id;
+          const isBusy = checkOverlap(assignedProf.id, slotStart, totalDuration, dateVal);
+          if (!isBusy) {
+            profHintText.textContent = `✨ ${assignedProf.name} está libre en este horario.`;
+          } else {
+            profHintText.textContent = `⚠️ Todos ocupados. ${assignedProf.name} se libera antes (a las ${formatTimeString(bestEndTime)}).`;
+          }
+        } else {
+          profHintText.textContent = 'No hay profesionales disponibles.';
         }
       } else {
         profHintText.textContent = 'Auto-asignando el profesional más disponible...';
       }
     } else {
       // Modo manual
-      const profName = profSelect.value;
-      if (selectedTimeSlot) {
+      const profId = profSelect.value;
+      const prof = professionals.find(p => p.id === profId);
+      const profName = prof ? prof.name : '';
+      if (selectedTimeSlot && profId) {
         const slotStart = parseTimeString(selectedTimeSlot);
-        const isBusy = checkOverlap(profName, slotStart, totalDuration, dateVal);
+        const isBusy = checkOverlap(profId, slotStart, totalDuration, dateVal);
         if (isBusy) {
-          const nextFree = getEarliestFreeAfter(slotStart, profName, dateVal);
+          const nextFree = getEarliestFreeAfter(slotStart, profId, dateVal);
           profHintText.textContent = `⚠️ ${profName} está ocupado en ese bloque. Disponible a las ${formatTimeString(nextFree)}.`;
         } else {
           profHintText.textContent = `✨ ${profName} está libre a las ${selectedTimeSlot}.`;
         }
-      } else {
-        // Encontrar próxima disponibilidad general
-        const nextFree = getEarliestFreeAfter(8 * 60, profName, dateVal);
+      } else if (profId) {
+        const nextFree = getEarliestFreeAfter(8 * 60, profId, dateVal);
         profHintText.textContent = `Próxima disponibilidad de ${profName}: ~${formatTimeString(nextFree)}.`;
       }
     }
@@ -473,10 +516,9 @@ export function openAppointmentModal({ appointments = [], onSave = null, mode = 
   }
 
   // Helper para buscar cuándo se libera un profesional
-  function getEarliestFreeAfter(startMinutes, profName, dateVal) {
-    // Ordenar citas de hoy del profesional
+  function getEarliestFreeAfter(startMinutes, profId, dateVal) {
     const profApts = appointments
-      .filter(apt => apt.date === dateVal && apt.prof === profName)
+      .filter(apt => apt.date === dateVal && apt.professional_id === profId)
       .map(getAppointmentTimeRange)
       .sort((a, b) => a.start - b.start);
 
@@ -612,7 +654,7 @@ export function openAppointmentModal({ appointments = [], onSave = null, mode = 
   }
 
   // Guardar / Confirmar Cita
-  saveBtn.addEventListener('click', () => {
+  saveBtn.addEventListener('click', async () => {
     let hasError = false;
 
     // Resetear clases de error
@@ -649,7 +691,6 @@ export function openAppointmentModal({ appointments = [], onSave = null, mode = 
     }
 
     if (hasError) {
-      // Focus en el primer error
       const firstInputErr = root.querySelector('.form-input-error');
       if (firstInputErr) {
         firstInputErr.focus();
@@ -657,19 +698,17 @@ export function openAppointmentModal({ appointments = [], onSave = null, mode = 
       return;
     }
 
-    // Deshabilitar botón para estado de guardado
     saveBtn.disabled = true;
     saveBtn.textContent = 'Guardando...';
 
-    // Simular retraso de guardado
-    setTimeout(() => {
+    try {
       const payload = {
         time: selectedTimeSlot,
         client: nameInput.value.trim(),
         phone: phoneInput.value.trim(),
         email: emailInput.value.trim(),
         service: selectedServices.map(s => s.name).join(' + '),
-        prof: profSelect.value,
+        professional_id: profSelect.value,
         status: mode === 'edit' && appointmentData ? appointmentData.status : 'confirmada',
         notes: notesInput.value.trim(),
         date: dateInput.value,
@@ -678,20 +717,27 @@ export function openAppointmentModal({ appointments = [], onSave = null, mode = 
 
       if (onSave) {
         if (mode === 'edit') {
-          onSave(payload, appointmentData);
+          await onSave(payload, appointmentData);
         } else {
-          onSave(payload);
+          await onSave(payload, selectedServices);
         }
       }
 
-      // Mostrar Toast interactivo global
       showToast({
         title: mode === 'edit' ? 'Cita actualizada' : 'Cita agendada',
-        subtitle: `${payload.client} · ${payload.time} con ${payload.prof}`,
+        subtitle: `${payload.client} · ${payload.time}`,
         type: 'success'
       });
 
       closeModal();
-    }, 800);
+    } catch (err) {
+      showToast({
+        title: 'Error al guardar la cita',
+        subtitle: err.message,
+        type: 'error'
+      });
+      saveBtn.disabled = false;
+      saveBtn.textContent = mode === 'edit' ? 'Guardar Cambios' : 'Confirmar Cita Ahora';
+    }
   });
 }

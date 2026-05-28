@@ -1,5 +1,14 @@
 // booking.js — Coordinador y Enrutador del Flujo de Reserva Público
-import { getBusinesses } from './utils/businessState.js';
+import { getBusinessBySlug, addAppointment, getProfessionalsForBooking, getAppointments } from './utils/businessState.js';
+
+function parseTimeString(timeStr) {
+  if (!timeStr) return 480;
+  const [time, modifier] = timeStr.split(' ');
+  let [hours, minutes] = time.split(':').map(Number);
+  if (modifier === 'PM' && hours < 12) hours += 12;
+  if (modifier === 'AM' && hours === 12) hours = 0;
+  return hours * 60 + minutes;
+}
 
 function hexToRgba(hex, alpha) {
   let c;
@@ -30,16 +39,28 @@ function getContrastColor(hex) {
   return (yiq >= 180) ? '#181135' : '#ffffff';
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  // 1. Cargar negocio dinámico desde query param ?b=slug o localStorage por defecto
+document.addEventListener('DOMContentLoaded', async () => {
   const urlParams = new URLSearchParams(window.location.search);
   const bizSlug = urlParams.get('b');
-  const businesses = getBusinesses();
   
-  let activeBiz = businesses[0]; // Fallback al primero
+  let activeBiz = null;
   if (bizSlug) {
-    const found = businesses.find(b => b.slug === bizSlug);
-    if (found) activeBiz = found;
+    activeBiz = await getBusinessBySlug(bizSlug);
+  }
+
+  if (!activeBiz) {
+    const container = document.getElementById('booking-flow-container');
+    if (container) {
+      container.innerHTML = `
+        <div class="booking-loading-placeholder" style="padding-top: var(--space-12); text-align: center;">
+          <i data-lucide="alert-triangle" style="width: 64px; height: 64px; color: #ff5a7a; margin-bottom: 20px;"></i>
+          <h2 style="color: #ff5a7a;">Negocio no encontrado</h2>
+          <p style="color: var(--text-secondary); margin-bottom: var(--space-6);">El enlace que has seguido es inválido, o el negocio se encuentra pausado.</p>
+        </div>
+      `;
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+    return;
   }
 
   // Aplicar datos del negocio a la UI de reservas
@@ -76,6 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Estado global de la reserva en el cliente
   const bookingState = {
+    business: activeBiz,
     selectedServices: [],
     selectedProfessional: null,
     selectedDate: null,
@@ -173,18 +195,92 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   // Envío final del formulario de reserva
-  const submitBooking = () => {
+  const submitBooking = async () => {
     const container = document.getElementById('booking-flow-container');
     if (!container) return;
 
     container.innerHTML = `
-      <div class="booking-loading-placeholder" style="padding-top: var(--space-8);">
-        <i data-lucide="check-circle" style="width: 64px; height: 64px; color: var(--biz-accent); filter: drop-shadow(0 0 10px var(--biz-accent-light));"></i>
-        <h2 style="margin-top: var(--space-4);">¡Reserva Confirmada Exitosamente!</h2>
-        <p style="color: var(--text-secondary); margin-bottom: var(--space-6);">Tu cita ha sido agendada. Te esperamos el día seleccionado.</p>
-        <a href="/index.html" class="btn btn-primary" style="background: var(--biz-accent); border:none; box-shadow: 0 4px 15px var(--biz-accent-light);">Volver al Inicio</a>
+      <div class="booking-loading-placeholder">
+        <i data-lucide="loader" class="loader-icon anim-spin"></i>
+        <h3>Confirmando tu reserva...</h3>
       </div>
     `;
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+
+    try {
+      let assignedProfId = bookingState.selectedProfessional.id;
+      
+      // Auto-asignación ("Cualquiera")
+      if (assignedProfId === 'prof-1') {
+        const professionals = await getProfessionalsForBooking(bookingState.business.id);
+        const appointments = await getAppointments(bookingState.business.id);
+        
+        const slotStart = parseTimeString(bookingState.selectedTimeSlot);
+        const totalDuration = bookingState.selectedServices.reduce((sum, s) => sum + s.duration, 0);
+        
+        const checkOverlap = (profId) => {
+          return appointments.some(apt => {
+            if (apt.date !== bookingState.selectedDate) return false;
+            if (apt.professional_id !== profId) return false;
+            const start = parseTimeString(apt.time);
+            const duration = apt.rawServices?.reduce((sum, s) => sum + s.duration_at_time, 0) || 30;
+            const end = start + duration;
+            return slotStart < end && (slotStart + totalDuration) > start;
+          });
+        };
+
+        const freeProf = professionals.find(p => !checkOverlap(p.id));
+        if (freeProf) {
+          assignedProfId = freeProf.id;
+        } else if (professionals.length > 0) {
+          assignedProfId = professionals[0].id;
+        } else {
+          throw new Error('No hay profesionales activos en este negocio');
+        }
+      }
+
+      // Preparar payload
+      const payload = {
+        date: bookingState.selectedDate,
+        time: bookingState.selectedTimeSlot,
+        client: bookingState.clientInfo.name.trim(),
+        phone: bookingState.clientInfo.phone.trim(),
+        email: bookingState.clientInfo.email.trim() || null,
+        status: 'pendiente',
+        notes: bookingState.clientInfo.notes.trim(),
+        source: 'publica',
+        professional_id: assignedProfId,
+        totalPrice: bookingState.selectedServices.reduce((sum, s) => sum + s.price, 0)
+      };
+
+      // Guardar cita en Supabase
+      await addAppointment(bookingState.business.id, payload, bookingState.selectedServices);
+
+      container.innerHTML = `
+        <div class="booking-loading-placeholder" style="padding-top: var(--space-8); text-align: center;">
+          <i data-lucide="check-circle" style="width: 64px; height: 64px; color: var(--biz-accent); filter: drop-shadow(0 0 10px var(--biz-accent-light));"></i>
+          <h2 style="margin-top: var(--space-4);">¡Reserva Confirmada Exitosamente!</h2>
+          <p style="color: var(--text-secondary); margin-bottom: var(--space-6);">Tu cita ha sido agendada. Te esperamos el día seleccionado.</p>
+          <a href="/index.html" class="btn btn-primary" style="background: var(--biz-accent); border:none; box-shadow: 0 4px 15px var(--biz-accent-light);">Volver al Inicio</a>
+        </div>
+      `;
+    } catch (err) {
+      console.error(err);
+      container.innerHTML = `
+        <div class="booking-loading-placeholder" style="padding-top: var(--space-8); text-align: center;">
+          <i data-lucide="alert-circle" style="width: 64px; height: 64px; color: #ff5a7a;"></i>
+          <h2 style="margin-top: var(--space-4); color: #ff5a7a;">Error al confirmar reserva</h2>
+          <p style="color: var(--text-secondary); margin-bottom: var(--space-6);">${err.message}</p>
+          <button class="btn btn-primary" id="btn-retry-booking">Intentar de nuevo</button>
+        </div>
+      `;
+      
+      const retryBtn = container.querySelector('#btn-retry-booking');
+      if (retryBtn) {
+        retryBtn.addEventListener('click', () => goToStep(3));
+      }
+    }
+
     if (typeof lucide !== 'undefined') {
       lucide.createIcons();
     }
