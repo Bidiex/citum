@@ -12,6 +12,19 @@ export const auth = {
   },
 
   /**
+   * Login con Google Auth
+   */
+  loginWithGoogle: async () => {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin + '/panel.html'
+      }
+    });
+    return { data, error };
+  },
+
+  /**
    * Registro de nuevo usuario
    */
   register: async (email, password, fullName) => {

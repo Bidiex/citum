@@ -1,0 +1,182 @@
+/* styles/onboarding.css */
+
+.onboarding-overlay {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle at 100% 0%, rgba(109, 59, 255, 0.12), transparent 40%),
+              radial-gradient(circle at 0% 100%, rgba(179, 136, 255, 0.06), transparent 50%),
+              var(--bg-primary);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  font-family: var(--font-primary);
+  overflow-y: auto;
+}
+
+.onboarding-glass-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md); /* 18px matching modal */
+  box-shadow: 0 20px 50px rgba(24, 17, 53, 0.15); /* matching modal shadow */
+  width: 100%;
+  max-width: 520px;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  transition: all var(--transition-base);
+}
+
+.onboarding-progress {
+  display: flex;
+  height: 6px;
+  background-color: var(--border-soft);
+  width: 100%;
+}
+
+.onboarding-progress-bar {
+  height: 100%;
+  background: var(--grad-cta);
+  width: 0%;
+  border-radius: 0 var(--radius-pill) var(--radius-pill) 0;
+  box-shadow: 0 0 12px rgba(139, 92, 255, 0.5);
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.onboarding-header {
+  padding: var(--space-6) var(--space-6) var(--space-4); /* Consistent modal padding */
+  text-align: center;
+}
+
+/* Header Logo Icon matching sidebar brand */
+.onboarding-logo-area {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.onboarding-logo-area .logo-icon {
+  width: 10px;
+  height: 24px;
+  background: var(--grad-brand);
+  border-radius: var(--radius-xs);
+  transform: skewX(-15deg);
+  box-shadow: var(--shadow-glow);
+}
+
+.onboarding-logo-area .brand-text {
+  font-size: var(--text-xl);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.onboarding-header h1 {
+  font-size: var(--text-lg); /* Matching modal header text size */
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: var(--space-1);
+  letter-spacing: -0.02em;
+}
+
+.onboarding-header p {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  margin: 0;
+}
+
+.onboarding-content {
+  padding: var(--space-4) var(--space-6) var(--space-6); /* Consistent vertical padding */
+  min-height: 260px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.onboarding-step {
+  display: none;
+  animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.onboarding-step.active {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4); /* Matching standard modal body gap */
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.schedule-grid-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.schedule-grid {
+  display: grid;
+  grid-template-columns: 100px 1fr 1fr;
+  gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-2) var(--space-4);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-base);
+}
+
+.schedule-grid:hover {
+  border-color: var(--accent-purple);
+  background: var(--bg-card-hover);
+}
+
+.schedule-grid span {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.schedule-grid .form-input {
+  padding: var(--space-2) var(--space-3);
+  height: 38px;
+  font-size: var(--text-xs);
+}
+
+.onboarding-footer {
+  padding: var(--space-6);
+  border-top: 1px solid var(--border-soft);
+  background-color: var(--bg-secondary);
+}
+
+.celebration-area {
+  text-align: center;
+  padding-block: var(--space-4);
+}
+
+.celebration-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+  border-radius: 50%;
+  margin: 0 auto var(--space-4);
+}
+
+.celebration-icon svg {
+  width: 36px;
+  height: 36px;
+}
