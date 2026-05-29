@@ -1,3 +1,5 @@
+@import './toast.css';
+
 /* Base tokens que no cambian entre temas */
 :root {
   /* Spacing */

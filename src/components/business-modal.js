@@ -2,6 +2,7 @@
 import { addBusiness, updateBusiness, deleteBusiness } from '../utils/businessState.js';
 import { showConfirm } from '../utils/confirm.js';
 import { showToast } from '../utils/toast.js';
+import { supabase } from '../core/supabase.js';
 
 const PALETTE_COLORS = [
   // Rojos
@@ -294,7 +295,7 @@ export function openBusinessModal({ mode = 'create', businessData = null, onSave
     const file = e.target.files[0];
     if (file) {
       if (file.size > 2 * 1024 * 1024) {
-        alert('La imagen no debe superar los 2MB');
+        showToast({ title: 'Imagen muy grande', subtitle: 'La imagen no debe superar los 2MB', type: 'warning' });
         return;
       }
       const reader = new FileReader();
@@ -358,7 +359,7 @@ export function openBusinessModal({ mode = 'create', businessData = null, onSave
   }
 
   // Validación y envío de formulario
-  saveBtn.addEventListener('click', () => {
+  saveBtn.addEventListener('click', async () => {
     let hasError = false;
 
     // Resetear clases de error
@@ -405,7 +406,29 @@ export function openBusinessModal({ mode = 'create', businessData = null, onSave
 
     try {
       if (mode === 'create') {
-        payload.slug = slugify(nameInput.value.trim());
+        const baseSlug = slugify(nameInput.value.trim());
+        let finalSlug = baseSlug;
+        let isUnique = false;
+        let attempts = 0;
+        while (!isUnique && attempts < 10) {
+          const { data, error } = await supabase
+            .from('businesses')
+            .select('id')
+            .eq('slug', finalSlug)
+            .maybeSingle();
+
+          if (error) {
+            console.error('Error checking slug uniqueness:', error);
+          }
+
+          if (!data) {
+            isUnique = true;
+          } else {
+            attempts++;
+            finalSlug = `${baseSlug}-${Math.floor(1000 + Math.random() * 9000)}`;
+          }
+        }
+        payload.slug = finalSlug;
         await addBusiness(payload);
       } else {
         await updateBusiness(businessData.id, payload);

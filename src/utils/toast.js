@@ -41,8 +41,8 @@ export function showToast(optionsOrTitle, subtitle = '', type = 'info', duration
 
   // Determinar icono según tipo
   let iconName = 'info';
-  if (t === 'success') iconName = 'check-circle';
-  if (t === 'error') iconName = 'x-circle';
+  if (t === 'success') iconName = 'check';
+  if (t === 'error') iconName = 'x';
   if (t === 'warning') iconName = 'alert-triangle';
 
   toast.innerHTML = `

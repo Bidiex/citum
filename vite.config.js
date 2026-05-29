@@ -9,6 +9,7 @@ export default defineConfig({
         login: resolve(__dirname, 'login.html'),
         panel: resolve(__dirname, 'panel.html'),
         booking: resolve(__dirname, 'booking.html'),
+        onboarding: resolve(__dirname, 'onboarding.html'),
       },
     },
   },

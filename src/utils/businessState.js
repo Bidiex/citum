@@ -88,6 +88,7 @@ export async function addBusiness(payload) {
       color: payload.color || '#8B5CF6',
       logo_url: payload.logo || null,
       is_paused: false,
+      plan: payload.plan || 'esencial',
     })
     .select()
     .single();

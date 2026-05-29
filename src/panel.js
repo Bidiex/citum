@@ -8,34 +8,10 @@ import {
 import { auth } from './core/auth.js';
 import { supabase } from './core/supabase.js';
 
-import { getOnboardingState } from './utils/onboardingState.js';
-
 document.addEventListener('DOMContentLoaded', async () => {
   // Inicializar Iconos Lucide
   if (typeof lucide !== 'undefined') {
     lucide.createIcons();
-  }
-
-  // Interceptar Onboarding
-  try {
-    const { session } = await auth.getSession();
-    if (session) {
-      const state = await getOnboardingState(session.user.id);
-      if (state !== 'completed') {
-        const layout = document.getElementById('dashboard-layout');
-        if (layout) layout.style.display = 'none';
-        
-        const wizardContainer = document.createElement('div');
-        wizardContainer.id = 'wizard-root';
-        document.body.appendChild(wizardContainer);
-        
-        const { mountOnboardingWizard } = await import('./components/onboarding-wizard.js');
-        mountOnboardingWizard(wizardContainer);
-        return; // Detener inicialización del panel normal
-      }
-    }
-  } catch (err) {
-    console.error('Error verificando onboarding:', err);
   }
 
   // 1. Selector de Negocios (Dropdown)

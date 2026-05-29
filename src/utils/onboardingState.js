@@ -67,12 +67,23 @@ export async function createInitialProfessional(businessId, payload) {
   const schedules = [];
   const days = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
   
+  const dayToInt = {
+    domingo: 0,
+    lunes: 1,
+    martes: 2,
+    miercoles: 3,
+    jueves: 4,
+    viernes: 5,
+    sabado: 6
+  };
+
   days.forEach(day => {
+    const dayVal = dayToInt[day];
     // If the day is enabled in the payload
     if (payload.schedules && payload.schedules[day] && payload.schedules[day].active) {
       schedules.push({
         professional_id: prof.id,
-        day_of_week: day,
+        day_of_week: dayVal,
         start_time: payload.schedules[day].start + ':00',
         end_time: payload.schedules[day].end + ':00',
         is_available: true
@@ -81,7 +92,7 @@ export async function createInitialProfessional(businessId, payload) {
       // Default off days
       schedules.push({
         professional_id: prof.id,
-        day_of_week: day,
+        day_of_week: dayVal,
         start_time: '09:00:00',
         end_time: '18:00:00',
         is_available: false

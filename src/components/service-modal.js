@@ -196,7 +196,7 @@ export function openServiceModal({ mode = 'create', serviceData = null, onSave =
   }
 
   // Validación y envío de formulario
-  saveBtn.addEventListener('click', () => {
+  saveBtn.addEventListener('click', async () => {
     let hasError = false;
 
     // Resetear clases de error
