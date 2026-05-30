@@ -42,59 +42,74 @@ export async function init(container) {
             ${businesses.map(biz => {
               const isActive = biz.id === activeId;
               return `
-              <div class="card" style="padding: var(--space-6); ${isActive ? 'border-color: var(--accent-purple); box-shadow: 0 0 0 1px var(--accent-purple);' : ''}">
-                <div style="display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-4);">
-                  <div style="
-                    width: 40px; 
-                    height: 40px; 
-                    border-radius: var(--radius-sm); 
-                    background: ${biz.color || 'var(--grad-brand)'}; 
-                    color: #ffffff; 
-                    display: flex; 
-                    align-items: center; 
-                    justify-content: center;
-                    font-weight: 800;
-                    overflow: hidden;
-                    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-                  ">
-                    ${biz.logo_url ? `<img src="${biz.logo_url}" style="width:100%; height:100%; object-fit:cover;" />` : biz.name.charAt(0).toUpperCase()}
+              <div class="card" style="padding: var(--space-6); display: flex; flex-direction: column; justify-content: space-between; min-height: 240px;">
+                <div>
+                  <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: var(--space-4); gap: var(--space-2);">
+                    <div style="display: flex; align-items: center; gap: var(--space-3);">
+                      <div style="
+                        width: 40px; 
+                        height: 40px; 
+                        border-radius: var(--radius-sm); 
+                        background: ${biz.color || 'var(--grad-brand)'}; 
+                        color: #ffffff; 
+                        display: flex; 
+                        align-items: center; 
+                        justify-content: center;
+                        font-weight: 800;
+                        overflow: hidden;
+                        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+                        flex-shrink: 0;
+                      ">
+                        ${biz.logo_url ? `<img src="${biz.logo_url}" style="width:100%; height:100%; object-fit:cover;" />` : biz.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <h4 style="font-size: var(--text-base); font-weight: 700; color: var(--text-primary); margin: 0;">${biz.name}</h4>
+                        <p style="font-size: var(--text-xs); color: var(--text-muted); margin: 0;">/b/${biz.slug}</p>
+                      </div>
+                    </div>
+                    
+                    ${isActive ? '' : `
+                      <button class="btn-set-active" data-id="${biz.id}" style="
+                        background: none; 
+                        border: none; 
+                        color: var(--text-muted); 
+                        font-size: var(--text-xs); 
+                        font-weight: 600;
+                        cursor: pointer; 
+                        padding: 0;
+                      ">Activar</button>
+                    `}
                   </div>
-                  <div>
-                    <h4 style="font-size: var(--text-base); font-weight: 700; color: var(--text-primary);">${biz.name}</h4>
-                    <p style="font-size: var(--text-xs); color: var(--text-muted); margin: 0;">/b/${biz.slug}</p>
-                  </div>
+                  
+                  <p style="font-size: var(--text-sm); color: var(--text-secondary); margin-bottom: var(--space-2); margin-top: 0;">
+                    Dirección: <strong style="color: var(--text-primary);">${biz.address || 'No registrada'}</strong>
+                  </p>
+                  <p style="font-size: var(--text-sm); color: var(--text-secondary); margin-bottom: var(--space-4); margin-top: 0;">
+                    Teléfono: <strong style="color: var(--text-primary);">${biz.phone || '—'}</strong>
+                  </p>
                 </div>
-                
-                <p style="font-size: var(--text-sm); color: var(--text-secondary); margin-bottom: var(--space-2);">
-                  Dirección: <strong style="color: var(--text-primary);">${biz.address || 'No registrada'}</strong>
-                </p>
-                <p style="font-size: var(--text-sm); color: var(--text-secondary); margin-bottom: var(--space-4);">
-                  Teléfono: <strong style="color: var(--text-primary);">${biz.phone || '—'}</strong>
-                </p>
 
-                <div style="display: flex; justify-content: space-between; align-items: center; font-size: var(--text-xs); margin-bottom: var(--space-4); border-bottom: 1px solid var(--border-soft); padding-bottom: var(--space-3);">
+                <div style="display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); font-size: var(--text-xs); color: var(--text-muted); border-top: 1px solid var(--border-soft); padding-top: var(--space-3); margin-top: auto;">
                   <span>Estado: <strong style="color: ${biz.is_paused ? '#f97316' : 'var(--accent-neon)'};">${biz.is_paused ? 'Pausado' : 'Activo'}</strong></span>
-                  ${isActive ? `<span style="color: var(--accent-purple); font-weight: 700; font-size: var(--text-xs);">● Negocio activo</span>` : `
-                    <button class="btn-set-active" data-id="${biz.id}" style="background:none; border:none; color:var(--text-muted); font-size: var(--text-xs); cursor:pointer; padding: 0;">Activar</button>
-                  `}
-                </div>
-
-                <div style="display: flex; justify-content: space-between; align-items: center; font-size: var(--text-xs);">
-                  <a href="/booking.html?b=${biz.slug}" target="_blank" class="btn" style="
-                    color: var(--accent-purple); 
-                    border: 1px solid rgba(139, 92, 255, 0.3); 
-                    background: rgba(139, 92, 255, 0.04); 
-                    padding: 5px 12px; 
-                    font-size: var(--text-xs); 
-                    text-decoration: none; 
-                    display: inline-flex; 
-                    align-items: center; 
-                    gap: 4px;
-                  ">
-                    Ver Agendador
-                    <i data-lucide="external-link" style="width: 10px; height: 10px;"></i>
-                  </a>
-                  <a href="#" class="edit-settings-link" data-id="${biz.id}" style="color: var(--accent-purple); font-weight: 600; text-decoration: none; display: flex; align-items: center; gap: 4px;">Editar Ajustes</a>
+                  
+                  <div style="display: flex; align-items: center; gap: var(--space-4); margin-top: var(--space-1);">
+                    <a href="/booking.html?b=${biz.slug}" target="_blank" style="
+                      color: var(--accent-purple); 
+                      text-decoration: none; 
+                      display: inline-flex; 
+                      align-items: center; 
+                      gap: 4px;
+                      font-weight: 600;
+                    ">
+                      Ver Agendador
+                      <i data-lucide="external-link" style="width: 10px; height: 10px;"></i>
+                    </a>
+                    <a href="#" class="edit-settings-link" data-id="${biz.id}" style="
+                      color: var(--accent-purple); 
+                      font-weight: 600; 
+                      text-decoration: none;
+                    ">Editar Ajustes</a>
+                  </div>
                 </div>
               </div>
             `}).join('')}

@@ -20,6 +20,11 @@
 <body class="onboarding-body">
 
   <div class="onboarding-container">
+    <a href="/index.html" class="back-to-home" id="btn-back-home">
+      <i data-lucide="arrow-left" size="16"></i>
+      Volver al inicio
+    </a>
+    
     <div class="onboarding-card">
       
       <!-- Card Header -->
@@ -178,6 +183,21 @@
             <p class="selection-desc" style="text-align: center; margin-top: var(--space-4);">
               ¿No tienes una cuenta? <a href="#" id="link-switch-signup" style="color: var(--accent-neon); font-weight: 700; text-decoration: none;">Regístrate</a>
             </p>
+          </div>
+
+          <div id="auth-logged-in-mode" style="display: none;">
+            <div class="form-group" style="text-align: center; padding: var(--space-6) var(--space-4); background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-soft); border-radius: var(--radius-md); margin-top: var(--space-4);">
+              <i data-lucide="user-check" size="32" style="color: var(--accent-neon); margin-bottom: var(--space-2); display: inline-block;"></i>
+              <p style="font-size: var(--text-base); color: var(--text-primary); margin-bottom: var(--space-2); font-weight: 700; letter-spacing: -0.01em;">
+                Sesión activa detectada
+              </p>
+              <p style="color: var(--text-secondary); font-size: var(--text-sm); margin-bottom: var(--space-4);">
+                Estás conectado como <span id="logged-in-email" style="color: var(--accent-neon); font-weight: 700;"></span>
+              </p>
+              <p style="color: var(--text-muted); font-size: var(--text-xs); line-height: 1.4; max-width: 280px; margin-inline: auto;">
+                Crearemos tu negocio y lo asociaremos a tu cuenta automáticamente.
+              </p>
+            </div>
           </div>
         </div>
 

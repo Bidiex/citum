@@ -177,6 +177,13 @@ export async function openPosModal({ onSave = null } = {}) {
   const saveBtn = root.querySelector('#pos-save-btn');
   const nameInput = root.querySelector('#pos-client-name');
   const phoneInput = root.querySelector('#pos-client-phone');
+
+  // Strict Phone validation constraints: only digits, max 10
+  phoneInput.addEventListener('input', (e) => {
+    let val = e.target.value.replace(/\D/g, '');
+    if (val.length > 10) val = val.substring(0, 10);
+    e.target.value = val;
+  });
   const emailInput = root.querySelector('#pos-client-email');
   const servicesList = root.querySelector('#pos-services-list');
   const profSelect = root.querySelector('#pos-prof-select');
@@ -298,7 +305,25 @@ export async function openPosModal({ onSave = null } = {}) {
       hasError = true;
     }
 
-    if (hasError) return;
+    const phoneVal = phoneInput.value.trim();
+    if (phoneVal && (phoneVal.length !== 10 || !phoneVal.startsWith('3'))) {
+      phoneInput.classList.add('form-input-error');
+      hasError = true;
+      showToast({
+        title: 'Teléfono inválido',
+        subtitle: 'El teléfono debe tener exactamente 10 dígitos y empezar con 3 (o quedar vacío).',
+        type: 'warning'
+      });
+    }
+
+    if (hasError) {
+      if (nameInput.classList.contains('form-input-error')) {
+        nameInput.focus();
+      } else if (phoneInput.classList.contains('form-input-error')) {
+        phoneInput.focus();
+      }
+      return;
+    }
 
     saveBtn.disabled = true;
     saveBtn.textContent = 'Cobrando...';

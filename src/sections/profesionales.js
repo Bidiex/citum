@@ -218,35 +218,37 @@ export async function init(container) {
                 ? prof.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
                 : '?';
               return `
-                <div class="card" style="padding: var(--space-6);">
-                  <div style="display: flex; align-items: center; gap: var(--space-4); margin-bottom: var(--space-4);">
-                    <div style="
-                      width: 48px; 
-                      height: 48px; 
-                      border-radius: 50%; 
-                      background: rgba(139, 92, 255, 0.12); 
-                      display: flex; 
-                      align-items: center; 
-                      justify-content: center;
-                      color: var(--accent-neon);
-                      font-weight: 700;
-                      border: 1px solid rgba(139, 92, 255, 0.2);
-                      flex-shrink: 0;
-                    ">
-                      ${prof.avatar_url 
-                        ? `<img src="${prof.avatar_url}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" />`
-                        : avatarLetters}
+                <div class="card" style="padding: var(--space-6); display: flex; flex-direction: column; justify-content: space-between;">
+                  <div>
+                    <div style="display: flex; align-items: center; gap: var(--space-4); margin-bottom: var(--space-4);">
+                      <div style="
+                        width: 48px; 
+                        height: 48px; 
+                        border-radius: 50%; 
+                        background: rgba(139, 92, 255, 0.12); 
+                        display: flex; 
+                        align-items: center; 
+                        justify-content: center;
+                        color: var(--accent-neon);
+                        font-weight: 700;
+                        border: 1px solid rgba(139, 92, 255, 0.2);
+                        flex-shrink: 0;
+                      ">
+                        ${prof.avatar_url 
+                          ? `<img src="${prof.avatar_url}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" />`
+                          : avatarLetters}
+                      </div>
+                      <div>
+                        <h4 style="font-size: var(--text-base); font-weight: 700;">${prof.name}</h4>
+                        <p style="font-size: var(--text-xs); color: var(--text-muted); margin: 0;">${prof.role}</p>
+                      </div>
                     </div>
-                    <div>
-                      <h4 style="font-size: var(--text-base); font-weight: 700;">${prof.name}</h4>
-                      <p style="font-size: var(--text-xs); color: var(--text-muted); margin: 0;">${prof.role}</p>
-                    </div>
+                    <p style="font-size: var(--text-sm); color: var(--text-secondary); margin-bottom: var(--space-4); display: flex; align-items: center; gap: var(--space-2);">
+                      <i data-lucide="phone" style="width: 14px; height: 14px; flex-shrink: 0; color: var(--text-muted);"></i>
+                      ${prof.phone || 'Sin teléfono'}
+                    </p>
                   </div>
-                  <p style="font-size: var(--text-sm); color: var(--text-secondary); margin-bottom: var(--space-4); display: flex; align-items: center; gap: var(--space-2);">
-                    <i data-lucide="phone" style="width: 14px; height: 14px; flex-shrink: 0; color: var(--text-muted);"></i>
-                    ${prof.phone || 'Sin teléfono'}
-                  </p>
-                  <div style="display: flex; justify-content: space-between; align-items: center; font-size: var(--text-xs); color: var(--text-muted);">
+                  <div style="display: flex; justify-content: space-between; align-items: center; font-size: var(--text-xs); color: var(--text-muted); border-top: 1px solid var(--border-soft); padding-top: var(--space-3); margin-top: auto;">
                     <span>Estado: <strong style="color: ${prof.is_active ? 'var(--accent-neon)' : '#ef4444'};">${prof.is_active ? 'Activo' : 'Inactivo'}</strong></span>
                     <a href="#" class="btn-config-hours" data-id="${prof.id}" style="color: var(--accent-purple); font-weight: 600; text-decoration: none; display: flex; align-items: center; gap: 4px;">
                       Editar

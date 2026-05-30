@@ -56,7 +56,7 @@ export async function mountOnboardingWizard(containerElement) {
             </div>
             <div class="form-group">
               <label for="ob-biz-phone">Teléfono (Opcional)</label>
-              <input type="tel" class="form-input" id="ob-biz-phone" placeholder="Ej. +57 300 000 0000">
+              <input type="tel" class="form-input" id="ob-biz-phone" placeholder="Ej. 3001234567">
             </div>
           </div>
 
@@ -150,6 +150,15 @@ export async function mountOnboardingWizard(containerElement) {
   const progressBar = document.getElementById('wizard-progress');
   const title = document.getElementById('wizard-title');
   const subtitle = document.getElementById('wizard-subtitle');
+  const phoneInput = document.getElementById('ob-biz-phone');
+
+  if (phoneInput) {
+    phoneInput.addEventListener('input', (e) => {
+      let val = e.target.value.replace(/\D/g, '');
+      if (val.length > 10) val = val.substring(0, 10);
+      e.target.value = val;
+    });
+  }
 
   const updateUI = () => {
     document.querySelectorAll('.onboarding-step').forEach((el, index) => {
@@ -203,9 +212,12 @@ export async function mountOnboardingWizard(containerElement) {
     try {
       if (currentStep === 1) {
         const name = document.getElementById('ob-biz-name').value.trim();
-        const phone = document.getElementById('ob-biz-phone').value.trim();
+        const phone = phoneInput ? phoneInput.value.trim() : '';
         
         if (!name) throw new Error('El nombre del negocio es obligatorio.');
+        if (phone && (phone.length !== 10 || !phone.startsWith('3'))) {
+          throw new Error('El teléfono debe tener exactamente 10 dígitos y comenzar con 3 (o quedar vacío).');
+        }
 
         // Create slug from name
         const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');

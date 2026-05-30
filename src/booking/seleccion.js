@@ -1,6 +1,5 @@
-// seleccion.js — Módulo del paso 2: Selección de Profesional, Fecha y Hora (conectado a Supabase)
-import { getColombiaDate, parseTimestamptzToColombia } from '../utils/format.js';
-import { getProfessionalsForBooking } from '../utils/businessState.js';
+import { getColombiaDate, parseTimestamptzToColombia, getColombiaTodayStr, getColombiaTimeParts } from '../utils/format.js';
+import { getProfessionalsForBooking, getBusinessSchedules, getBusinessHolidays } from '../utils/businessState.js';
 import { supabase } from '../core/supabase.js';
 
 function parseTimeString(timeStr) {
@@ -67,8 +66,12 @@ export async function init(container, state, actions) {
   `;
   if (typeof lucide !== 'undefined') lucide.createIcons();
 
-  // Cargar profesionales de la DB
-  const professionalsList = await getProfessionalsForBooking(bizId);
+  // Cargar profesionales, horarios del negocio y feriados de la DB
+  const [professionalsList, bizSchedules, bizHolidays] = await Promise.all([
+    getProfessionalsForBooking(bizId),
+    getBusinessSchedules(bizId),
+    getBusinessHolidays(bizId)
+  ]);
 
   const mockProfessionals = [
     { id: 'prof-1', name: 'Cualquiera (Cualquier Profesional)', role: 'Asignación automática' },
@@ -81,17 +84,26 @@ export async function init(container, state, actions) {
     const daysOfWeek = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
     const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
     
+    const todayStr = getColombiaTodayStr();
+    const [year, month, day] = todayStr.split('-').map(Number);
+    
     for (let i = 0; i < 5; i++) {
-      const d = new Date();
-      d.setDate(d.getDate() + i);
-      const colDateStr = getColombiaDate(d);
-      const colD = new Date(colDateStr + 'T00:00:00');
+      const colD = new Date(year, month - 1, day + i);
+      const colDateStr = getColombiaDate(colD);
+      const dow = colD.getDay();
       
+      // Verificar si es un día feriado en el negocio
+      const isHoliday = bizHolidays.some(h => h.date === colDateStr);
+      // Verificar si el negocio abre este día de la semana
+      const bizSched = bizSchedules.find(s => s.day_of_week === dow);
+      const isBizClosed = bizSched ? !bizSched.is_open : false;
+
       dates.push({
         isoString: colDateStr,
-        dayName: daysOfWeek[colD.getDay()],
+        dayName: daysOfWeek[dow],
         dayNum: colD.getDate(),
-        monthName: months[colD.getMonth()]
+        monthName: months[colD.getMonth()],
+        isClosed: isHoliday || isBizClosed
       });
     }
     return dates;
@@ -100,8 +112,11 @@ export async function init(container, state, actions) {
   const dates = getUpcomingDates();
 
   // Valores predeterminados
+  const firstOpenDate = dates.find(d => !d.isClosed) || dates[0];
   if (!state.selectedProfessional) state.selectedProfessional = mockProfessionals[0];
-  if (!state.selectedDate) state.selectedDate = dates[0].isoString;
+  if (!state.selectedDate || dates.every(d => d.isoString !== state.selectedDate)) {
+    state.selectedDate = firstOpenDate.isoString;
+  }
 
   // Renderizar Estructura
   container.innerHTML = `
@@ -139,10 +154,10 @@ export async function init(container, state, actions) {
           ${dates.map(d => {
             const isSelected = state.selectedDate === d.isoString;
             return `
-              <div class="date-carousel-item ${isSelected ? 'selected' : ''}" data-date="${d.isoString}">
+              <div class="date-carousel-item ${isSelected ? 'selected' : ''} ${d.isClosed ? 'disabled-date' : ''}" data-date="${d.isoString}" ${d.isClosed ? 'style="opacity: 0.45; pointer-events: none;"' : ''}>
                 <span class="date-month">${d.monthName}</span>
                 <span class="date-number">${d.dayNum}</span>
-                <span class="date-day">${d.dayName}</span>
+                <span class="date-day">${d.isClosed ? 'Cerrado' : d.dayName}</span>
               </div>
             `;
           }).join('')}
@@ -275,6 +290,11 @@ export async function init(container, state, actions) {
     .date-carousel-item.selected .date-day {
       color: var(--accent-neon);
     }
+    .date-carousel-item.disabled-date {
+      opacity: 0.45;
+      pointer-events: none;
+      cursor: not-allowed;
+    }
 
     .time-slots-grid {
       display: grid;
@@ -330,12 +350,22 @@ export async function init(container, state, actions) {
     `;
     if (typeof lucide !== 'undefined') lucide.createIcons({ node: timeSlotsGrid });
 
-    const slots = await fetchAvailableSlots(
+    let slots = await fetchAvailableSlots(
       state.selectedProfessional.id,
       state.selectedDate,
       totalDuration,
       mockProfessionals
     );
+
+    // Filter out past time slots if the selected date is today in Colombia
+    const todayStr = getColombiaTodayStr();
+    if (state.selectedDate === todayStr) {
+      const nowParts = getColombiaTimeParts();
+      const currentMinutes = nowParts.hours * 60 + nowParts.minutes;
+      slots = slots.filter(slot => parseTimeString(slot) >= currentMinutes);
+    } else if (state.selectedDate < todayStr) {
+      slots = [];
+    }
 
     if (slots.length === 0) {
       timeSlotsGrid.innerHTML = `

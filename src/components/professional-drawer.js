@@ -263,6 +263,13 @@ export function openProfessionalDrawer({ mode = 'create', professional = null, o
   const nameInput = root.querySelector('#prof-name');
   const roleInput = root.querySelector('#prof-role');
   const phoneInput = root.querySelector('#prof-phone');
+
+  // Strict Phone validation constraints: only digits, max 10
+  phoneInput.addEventListener('input', (e) => {
+    let val = e.target.value.replace(/\D/g, '');
+    if (val.length > 10) val = val.substring(0, 10);
+    e.target.value = val;
+  });
   const statusInput = root.querySelector('#prof-status');
   const headerName = root.querySelector('#prof-header-name');
   const headerRole = root.querySelector('#prof-header-role');
@@ -554,9 +561,15 @@ export function openProfessionalDrawer({ mode = 'create', professional = null, o
       roleInput.classList.add('form-input-error');
       hasError = true;
     }
-    if (!phoneInput.value.trim()) {
+    const phoneVal = phoneInput.value.trim();
+    if (!phoneVal || phoneVal.length !== 10 || !phoneVal.startsWith('3')) {
       phoneInput.classList.add('form-input-error');
       hasError = true;
+      showToast({
+        title: 'Teléfono inválido',
+        subtitle: 'El teléfono debe tener exactamente 10 dígitos y empezar con 3.',
+        type: 'warning'
+      });
     }
 
     if (hasError) {

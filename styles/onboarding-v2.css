@@ -18,6 +18,24 @@
   justify-content: center;
   padding: var(--space-4, 16px);
   box-sizing: border-box;
+  position: relative;
+}
+
+.back-to-home {
+  position: absolute;
+  top: var(--space-8, 32px);
+  left: var(--space-8, 32px);
+  font-size: var(--text-sm, 14px);
+  color: var(--text-muted, #8E8AAE);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  text-decoration: none;
+  transition: color var(--transition-base, 250ms);
+}
+
+.back-to-home:hover {
+  color: var(--text-primary, #F5F3FF);
 }
 
 .onboarding-card {
@@ -326,7 +344,7 @@
   gap: var(--space-4, 16px);
 }
 
-@media (min-width: 500px) {
+@media (min-width: 576px) {
   .pricing-grid-step {
     grid-template-columns: repeat(3, 1fr);
   }
@@ -673,4 +691,175 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
 
 .selection-card.selected .selection-icon-wrapper svg {
   stroke: #ffffff !important;
+}
+
+/* ==========================================================================
+   Estilos Mobile Responsivos para Onboarding
+   ========================================================================== */
+@media (max-width: 576px) {
+  .back-to-home {
+    display: none;
+  }
+
+  .onboarding-container {
+    padding: 0;
+    align-items: stretch;
+  }
+
+  .onboarding-card {
+    border-radius: 0;
+    border: none;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding: var(--space-5, 20px) var(--space-4, 16px);
+    box-shadow: none;
+  }
+
+  .onboarding-header h1 {
+    font-size: var(--text-xl, 22px);
+  }
+
+  .onboarding-header {
+    margin-bottom: var(--space-4, 16px);
+  }
+
+  .onboarding-content {
+    flex-grow: 1;
+    margin-bottom: var(--space-6, 24px);
+  }
+
+  .onboarding-footer {
+    margin-top: auto;
+    padding-top: var(--space-4, 16px);
+    border-top: 1px solid var(--border-soft, rgba(255, 255, 255, 0.08));
+    background: transparent;
+    position: sticky;
+    bottom: 0;
+    margin-inline: calc(-1 * var(--space-4, 16px));
+    padding-inline: var(--space-4, 16px);
+    padding-bottom: var(--space-4, 16px);
+    z-index: 10;
+    gap: var(--space-3, 12px);
+  }
+
+  .onboarding-footer .btn {
+    font-size: var(--text-sm, 14px);
+    padding-inline: var(--space-3, 12px);
+    height: 48px;
+  }
+
+  .onboarding-footer .btn-secondary {
+    flex: 0 0 auto;
+  }
+
+  .onboarding-footer .btn-primary {
+    flex: 1;
+  }
+
+  /* Grilla de selección en 2 columnas (Categorías) */
+  .selection-grid.grid-2 {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-2, 8px);
+  }
+
+  .selection-grid.grid-2 .selection-card {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: var(--space-3, 12px) var(--space-2, 8px);
+    gap: var(--space-2, 8px);
+    min-height: 108px;
+    justify-content: center;
+  }
+
+  .selection-grid.grid-2 .selection-icon-wrapper {
+    width: 36px;
+    height: 36px;
+    margin: 0 auto;
+  }
+
+  .selection-grid.grid-2 .selection-title {
+    font-size: var(--text-xs, 13px);
+    line-height: 1.2;
+  }
+
+  .selection-grid.grid-2 .checkbox-indicator {
+    top: 8px;
+    right: 8px;
+    width: 16px;
+    height: 16px;
+  }
+
+  /* Ajustes para grillas de 1 columna (Sedes, Canales de descubrimiento) */
+  .selection-grid:not(.grid-2) .selection-card {
+    padding: var(--space-3, 12px);
+    gap: var(--space-3, 12px);
+  }
+
+  .selection-grid:not(.grid-2) .selection-icon-wrapper {
+    width: 36px;
+    height: 36px;
+  }
+
+  .selection-grid:not(.grid-2) .selection-title {
+    font-size: var(--text-sm, 14px);
+  }
+
+  .selection-grid:not(.grid-2) .selection-desc {
+    font-size: var(--text-xs, 12px);
+  }
+
+  /* Ajuste en horarios para evitar desbordamiento horizontal */
+  .schedule-grid-container {
+    max-height: 320px;
+    padding-right: 4px;
+  }
+
+  .schedule-row {
+    grid-template-columns: 100px 1fr 1fr;
+    gap: var(--space-2, 8px);
+    padding: var(--space-2, 8px) var(--space-3, 12px);
+  }
+
+  .schedule-day-label {
+    gap: var(--space-2, 8px);
+  }
+
+  .day-name {
+    font-size: var(--text-xs, 13px);
+  }
+
+  .schedule-row .form-input {
+    height: 36px;
+    padding-inline: var(--space-2, 8px);
+    font-size: var(--text-xs, 13px);
+  }
+
+  /* Tarjetas de planes apiladas con margen para el popular badge */
+  .plan-card {
+    margin-top: 12px;
+  }
+}
+
+/* Pantallas móviles muy pequeñas (ej. iPhone SE o anchos menores a 380px) */
+@media (max-width: 380px) {
+  .schedule-row {
+    grid-template-columns: 90px 1fr 1fr;
+    gap: 4px;
+    padding: var(--space-2, 8px) var(--space-2, 8px);
+  }
+
+  .schedule-day-label {
+    gap: 4px;
+  }
+
+  .day-name {
+    font-size: 12px;
+  }
+
+  .schedule-row .form-input {
+    padding-inline: 4px;
+    font-size: 12px;
+  }
 }

@@ -14,11 +14,11 @@ function formatDateSpanish(dateStr) {
   return formatted.charAt(0).toUpperCase() + formatted.slice(1);
 }
 
-export function openAptDetailModal({ apt, onEdit = null, onDelete = null }) {
+export async function openAptDetailModal({ apt, onEdit = null, onDelete = null }) {
   if (!apt) return;
 
   const bizId = getActiveBusinessId();
-  const services = getServices(bizId);
+  const services = await getServices(bizId);
   const SERVICE_PRICES = {};
   services.forEach(s => {
     SERVICE_PRICES[s.name] = s.price;

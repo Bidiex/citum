@@ -911,6 +911,10 @@
   transition: all var(--transition-base);
 }
 
+#biz-schedule-grid-container .schedule-day-row {
+  gap: var(--space-3);
+}
+
 .schedule-day-row.inactive {
   opacity: 0.6;
   background: var(--bg-secondary);

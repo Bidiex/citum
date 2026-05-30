@@ -31,8 +31,90 @@ export async function init(container) {
     </div>
   `;
   if (typeof lucide !== 'undefined') lucide.createIcons();
-
+  
   let invoices = await getInvoices(businessId);
+  let searchQuery = '';
+
+  const renderTableContent = () => {
+    const tableContent = container.querySelector('#crm-table-content');
+    if (!tableContent) return;
+
+    const filteredInvoices = invoices.filter(inv => {
+      const numMatch = inv.invoice_number && inv.invoice_number.toLowerCase().includes(searchQuery);
+      const clientMatch = inv.client_name && inv.client_name.toLowerCase().includes(searchQuery);
+      return numMatch || clientMatch;
+    });
+
+    if (invoices.length === 0) {
+      tableContent.innerHTML = `
+        <div class="crm-empty-state">
+          <i data-lucide="receipt" size="48" style="stroke-width: 1.5; color: var(--accent-neon); margin-bottom: var(--space-2);"></i>
+          <h3>Sin facturas</h3>
+          <p>No se han registrado facturas en este negocio todavía.</p>
+        </div>
+      `;
+    } else if (filteredInvoices.length === 0) {
+      tableContent.innerHTML = `
+        <div class="crm-empty-state">
+          <i data-lucide="search" size="48" style="stroke-width: 1.5; color: var(--accent-neon); margin-bottom: var(--space-2);"></i>
+          <h3>No se encontraron resultados</h3>
+          <p>No hay facturas que coincidan con la búsqueda "${searchQuery}".</p>
+        </div>
+      `;
+    } else {
+      tableContent.innerHTML = `
+        <table class="crm-table">
+          <thead>
+            <tr>
+              <th>Número</th>
+              <th>Cliente</th>
+              <th>Método</th>
+              <th>Fecha</th>
+              <th>Total</th>
+              <th style="text-align: right;">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filteredInvoices.map(inv => `
+              <tr>
+                <td style="font-weight: 700; color: var(--accent-neon);">${inv.invoice_number}</td>
+                <td>${inv.client_name}</td>
+                <td style="text-transform: capitalize;">${inv.payment_method}</td>
+                <td>${new Date(inv.created_at).toLocaleDateString('es-CO')}</td>
+                <td style="font-weight: 700;">COP $${Number(inv.total).toLocaleString('es-CO')}</td>
+                <td style="text-align: right;">
+                  <button class="btn-print-invoice" data-id="${inv.id}" style="
+                    background: none; 
+                    border: none; 
+                    color: var(--accent-purple); 
+                    font-weight: 600; 
+                    cursor: pointer;
+                  ">
+                    <i data-lucide="printer" size="16" style="display: inline; vertical-align: middle; margin-right: 4px;"></i>
+                    Imprimir
+                  </button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    if (typeof lucide !== 'undefined') {
+      lucide.createIcons({ node: tableContent });
+    }
+
+    tableContent.querySelectorAll('.btn-print-invoice').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-id');
+        const invoice = invoices.find(inv => inv.id === id);
+        if (invoice) {
+          generateClientTicket(invoice, business);
+        }
+      });
+    });
+  };
 
   const render = () => {
     container.innerHTML = `
@@ -50,94 +132,57 @@ export async function init(container) {
         </div>
 
         <!-- Tabla de Facturación -->
-        <div class="table-container" style="
-          background: var(--bg-secondary); 
-          border: 1px solid var(--border-soft); 
-          border-radius: var(--radius-md); 
-          margin-top: var(--space-4);
-          overflow-x: auto;
-        ">
-          ${invoices.length === 0 ? `
-            <div style="text-align: center; padding: var(--space-10); color: var(--text-muted);">
-              <i data-lucide="receipt" size="32" style="margin-bottom: 10px; color: var(--accent-neon);"></i>
-              <p>No se han registrado facturas en este negocio todavía.</p>
+        <div class="crm-table-wrapper">
+          <div class="crm-table-header-row">
+            <div class="crm-search-input-wrapper">
+              <i data-lucide="search"></i>
+              <input type="text" id="crm-invoice-search" class="crm-search-input" placeholder="Buscar por número o cliente...">
             </div>
-          ` : `
-            <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: var(--text-sm);">
-              <thead>
-                <tr style="border-bottom: 1px solid var(--border-soft); color: var(--text-muted); font-weight: 700;">
-                  <th style="padding: var(--space-4);">Número</th>
-                  <th style="padding: var(--space-4);">Cliente</th>
-                  <th style="padding: var(--space-4);">Método</th>
-                  <th style="padding: var(--space-4);">Fecha</th>
-                  <th style="padding: var(--space-4);">Total</th>
-                  <th style="padding: var(--space-4); text-align: right;">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${invoices.map((inv, idx) => `
-                  <tr style="border-bottom: 1px solid var(--border-soft);">
-                    <td style="padding: var(--space-4); font-weight: 700; color: var(--accent-neon);">${inv.invoice_number}</td>
-                    <td style="padding: var(--space-4);">${inv.client_name}</td>
-                    <td style="padding: var(--space-4); text-transform: capitalize;">${inv.payment_method}</td>
-                    <td style="padding: var(--space-4);">${new Date(inv.created_at).toLocaleDateString('es-CO')}</td>
-                    <td style="padding: var(--space-4); font-weight: 700;">COP $${Number(inv.total).toLocaleString('es-CO')}</td>
-                    <td style="padding: var(--space-4); text-align: right;">
-                      <button class="btn-print-invoice" data-index="${idx}" style="
-                        background: none; 
-                        border: none; 
-                        color: var(--accent-purple); 
-                        font-weight: 600; 
-                        cursor: pointer;
-                      ">
-                        <i data-lucide="printer" size="16" style="display: inline; vertical-align: middle; margin-right: 4px;"></i>
-                        Imprimir
-                      </button>
-                    </td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          `}
+          </div>
+          <div class="crm-table-container" id="crm-table-content"></div>
         </div>
       </div>
     `;
 
     if (typeof lucide !== 'undefined') {
-      lucide.createIcons();
+      lucide.createIcons({ node: container.querySelector('.view-container') });
     }
 
-    // Botón "Venta Directa"
+    const searchInput = container.querySelector('#crm-invoice-search');
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        searchQuery = e.target.value.toLowerCase().trim();
+        renderTableContent();
+      });
+    }
+
     const newBillBtn = container.querySelector('#btn-new-bill');
     if (newBillBtn) {
       newBillBtn.addEventListener('click', () => {
         openPosModal({
           onSave: async () => {
             invoices = await getInvoices(businessId);
-            render();
+            renderTableContent();
           }
         });
       });
     }
 
-    // Botones de imprimir
-    container.querySelectorAll('.btn-print-invoice').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const idx = parseInt(btn.getAttribute('data-index'), 10);
-        const invoice = invoices[idx];
-        if (invoice) {
-          generateClientTicket(invoice, business);
-        }
-      });
-    });
+    renderTableContent();
   };
 
   // Render inicial
   render();
 
   // SUSCRIPCIÓN EN TIEMPO REAL
+  const channelName = `invoices-changes-${businessId}`;
+
+  // Eliminar canal previo con el mismo nombre si ya existía para evitar duplicación y el error "cannot add postgres_changes callbacks after subscribe"
+  const existingChannel = supabase.channel(channelName);
+  supabase.removeChannel(existingChannel);
+
   const channel = supabase
-    .channel(`invoices-changes-${businessId}`)
+    .channel(channelName)
     .on('postgres_changes', { 
       event: '*', 
       schema: 'public', 
@@ -145,23 +190,12 @@ export async function init(container) {
       filter: `business_id=eq.${businessId}`
     }, async () => {
       invoices = await getInvoices(businessId);
-      render();
+      renderTableContent();
     })
     .subscribe();
 
-  // Desconectar al destruir vista
-  const observer = new MutationObserver((mutations) => {
-    mutations.forEach((mutation) => {
-      mutation.removedNodes.forEach((node) => {
-        if (node === container || node.contains(container)) {
-          supabase.removeChannel(channel);
-          observer.disconnect();
-        }
-      });
-    });
-  });
-  
-  if (container.parentNode) {
-    observer.observe(container.parentNode, { childList: true });
-  }
+  // Registrar cleanup para la navegación SPA
+  container.cleanup = () => {
+    supabase.removeChannel(channel);
+  };
 }

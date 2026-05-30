@@ -1,8 +1,62 @@
-// business-modal.js — Componente Drawer de Configuración de Negocio (Vanilla JS)
-import { addBusiness, updateBusiness, deleteBusiness } from '../utils/businessState.js';
+import { 
+  addBusiness, 
+  updateBusiness, 
+  deleteBusiness,
+  getBusinessSchedules,
+  updateBusinessSchedules,
+  getBusinessHolidays
+} from '../utils/businessState.js';
 import { showConfirm } from '../utils/confirm.js';
 import { showToast } from '../utils/toast.js';
 import { supabase } from '../core/supabase.js';
+
+const TIME_OPTIONS = [
+  { value: '06:00:00', label: '06:00 AM' },
+  { value: '06:30:00', label: '06:30 AM' },
+  { value: '07:00:00', label: '07:00 AM' },
+  { value: '07:30:00', label: '07:30 AM' },
+  { value: '08:00:00', label: '08:00 AM' },
+  { value: '08:30:00', label: '08:30 AM' },
+  { value: '09:00:00', label: '09:00 AM' },
+  { value: '09:30:00', label: '09:30 AM' },
+  { value: '10:00:00', label: '10:00 AM' },
+  { value: '10:30:00', label: '10:30 AM' },
+  { value: '11:00:00', label: '11:00 AM' },
+  { value: '11:30:00', label: '11:30 AM' },
+  { value: '12:00:00', label: '12:00 PM' },
+  { value: '12:30:00', label: '12:30 PM' },
+  { value: '13:00:00', label: '01:00 PM' },
+  { value: '13:30:00', label: '01:30 PM' },
+  { value: '14:00:00', label: '02:00 PM' },
+  { value: '14:30:00', label: '02:30 PM' },
+  { value: '15:00:00', label: '03:00 PM' },
+  { value: '15:30:00', label: '03:30 PM' },
+  { value: '16:00:00', label: '04:00 PM' },
+  { value: '16:30:00', label: '04:30 PM' },
+  { value: '17:00:00', label: '05:00 PM' },
+  { value: '17:30:00', label: '05:30 PM' },
+  { value: '18:00:00', label: '06:00 PM' },
+  { value: '18:30:00', label: '06:30 PM' },
+  { value: '19:00:00', label: '07:00 PM' },
+  { value: '19:30:00', label: '07:30 PM' },
+  { value: '20:00:00', label: '08:00 PM' },
+  { value: '20:30:00', label: '08:30 PM' },
+  { value: '21:00:00', label: '09:00 PM' },
+  { value: '21:30:00', label: '09:30 PM' },
+  { value: '22:00:00', label: '10:00 PM' },
+  { value: '22:30:00', label: '10:30 PM' },
+  { value: '23:00:00', label: '11:00 PM' }
+];
+
+const DAYS_OF_WEEK = [
+  { id: 0, name: 'Domingo' },
+  { id: 1, name: 'Lunes' },
+  { id: 2, name: 'Martes' },
+  { id: 3, name: 'Miércoles' },
+  { id: 4, name: 'Jueves' },
+  { id: 5, name: 'Viernes' },
+  { id: 6, name: 'Sábado' }
+];
 
 const PALETTE_COLORS = [
   // Rojos
@@ -66,6 +120,15 @@ export function openBusinessModal({ mode = 'create', businessData = null, onSave
       </div>
 
       <div class="biz-drawer-body">
+        ${mode === 'edit' ? `
+          <div class="biz-drawer-tabs" style="display: flex; gap: var(--space-4); border-bottom: 1px solid var(--border-soft); margin-bottom: var(--space-6); padding-bottom: 6px;">
+            <button type="button" class="biz-tab-btn active" data-tab="general" style="padding: var(--space-2) var(--space-4); background: none; border: none; border-bottom: 2px solid var(--accent-purple); color: var(--text-primary); font-weight: 700; cursor: pointer; transition: all var(--transition-base);">General</button>
+            <button type="button" class="biz-tab-btn" data-tab="schedule" style="padding: var(--space-2) var(--space-4); background: none; border: none; border-bottom: 2px solid transparent; color: var(--text-muted); font-weight: 700; cursor: pointer; transition: all var(--transition-base);">Horario Semanal</button>
+            <button type="button" class="biz-tab-btn" data-tab="holidays" style="padding: var(--space-2) var(--space-4); background: none; border: none; border-bottom: 2px solid transparent; color: var(--text-muted); font-weight: 700; cursor: pointer; transition: all var(--transition-base);">Días Feriados</button>
+          </div>
+        ` : ''}
+
+        <div class="biz-tab-content active" id="biz-tab-content-general">
         <!-- Campo Nombre -->
         <div class="form-group">
           <label for="biz-name">Nombre del negocio *${mode === 'edit' ? '<span class="badge-no-edit">No editable</span>' : ''}</label>
@@ -207,6 +270,58 @@ export function openBusinessModal({ mode = 'create', businessData = null, onSave
             </div>
           </div>
         ` : ''}
+        </div> <!-- Fin Tab General -->
+
+        ${mode === 'edit' ? `
+          <!-- Pestaña 2: Horarios de Atención -->
+          <div class="biz-tab-content" id="biz-tab-content-schedule" style="display: none;">
+            <div class="apt-modal-section-title" style="margin-bottom: var(--space-4); font-weight: 700; font-size: var(--text-sm); display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="calendar-clock" size="14"></i>
+              Horario Semanal de Atención
+            </div>
+            
+            <div class="schedule-week-grid" id="biz-schedule-grid-container">
+              <div style="text-align: center; padding: var(--space-6);">
+                <i data-lucide="loader" class="anim-spin" style="color: var(--accent-purple); display: inline-block;"></i>
+                <p style="margin-top: 10px; font-size: var(--text-xs); color: var(--text-muted);">Cargando horarios...</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pestaña 3: Días Feriados -->
+          <div class="biz-tab-content" id="biz-tab-content-holidays" style="display: none;">
+            <div class="apt-modal-section-title" style="margin-bottom: var(--space-4); font-weight: 700; font-size: var(--text-sm); display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="calendar-x" size="14"></i>
+              Días Feriados / Festivos (Cierre Total)
+            </div>
+
+            <!-- Formulario para agregar feriado -->
+            <div style="background: var(--bg-secondary); border: 1px solid var(--border-soft); padding: var(--space-4); border-radius: var(--radius-sm); margin-bottom: var(--space-6);">
+              <h4 style="font-size: var(--text-xs); font-weight: 700; text-transform: uppercase; margin-top: 0; margin-bottom: var(--space-3); color: var(--text-secondary);">Agregar nuevo feriado</h4>
+              <div style="display: flex; flex-direction: column; gap: var(--space-3);">
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label for="new-holiday-date" style="font-size: var(--text-xs); font-weight: 700;">Fecha *</label>
+                  <input type="date" id="new-holiday-date" class="form-input" style="height: 36px; font-size: var(--text-xs);" />
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label for="new-holiday-desc" style="font-size: var(--text-xs); font-weight: 700;">Descripción (opcional)</label>
+                  <input type="text" id="new-holiday-desc" class="form-input" placeholder="Ej. Navidad, Reparaciones..." style="height: 36px; font-size: var(--text-xs);" />
+                </div>
+                <button type="button" class="btn btn-primary" id="btn-add-holiday" style="height: 36px; font-size: var(--text-xs); font-weight: 700; width: 100%; border-radius: var(--radius-xs); cursor: pointer;">
+                  Agregar Día de Cierre
+                </button>
+              </div>
+            </div>
+
+            <!-- Listado de feriados -->
+            <div id="biz-holidays-list-container">
+              <div style="text-align: center; padding: var(--space-6);">
+                <i data-lucide="loader" class="anim-spin" style="color: var(--accent-purple); display: inline-block;"></i>
+                <p style="margin-top: 10px; font-size: var(--text-xs); color: var(--text-muted);">Cargando feriados...</p>
+              </div>
+            </div>
+          </div>
+        ` : ''}
       </div>
 
       <div class="biz-drawer-footer">
@@ -219,6 +334,231 @@ export function openBusinessModal({ mode = 'create', businessData = null, onSave
   `;
 
   document.body.appendChild(root);
+
+  document.body.appendChild(root);
+
+  // Tab State and Operations
+  let localSchedules = [];
+  let localHolidays = [];
+
+  const gridContainer = root.querySelector('#biz-schedule-grid-container');
+  const holidaysContainer = root.querySelector('#biz-holidays-list-container');
+
+  if (mode === 'edit' && businessData) {
+    Promise.all([
+      getBusinessSchedules(businessData.id),
+      getBusinessHolidays(businessData.id)
+    ]).then(([schedules, holidays]) => {
+      localSchedules = schedules.map(s => ({
+        day_of_week: s.day_of_week,
+        start_time: s.start_time,
+        end_time: s.end_time,
+        is_open: s.is_open
+      }));
+      
+      localHolidays = holidays.map(h => ({
+        id: h.id || Math.random().toString(36).substring(2, 9),
+        date: h.date,
+        description: h.description || ''
+      }));
+
+      renderScheduleGrid();
+      renderHolidaysList();
+    });
+  }
+
+  function renderScheduleGrid() {
+    if (!gridContainer) return;
+    gridContainer.innerHTML = '';
+
+    DAYS_OF_WEEK.forEach(day => {
+      const state = localSchedules.find(s => s.day_of_week === day.id) || {
+        day_of_week: day.id,
+        start_time: '08:00:00',
+        end_time: '20:00:00',
+        is_open: true
+      };
+
+      const dayRow = document.createElement('div');
+      dayRow.className = 'schedule-day-row';
+      dayRow.dataset.dayId = day.id;
+
+      const startTime = state.start_time && state.start_time.split(':').length === 2 ? state.start_time + ':00' : state.start_time || '08:00:00';
+      const endTime = state.end_time && state.end_time.split(':').length === 2 ? state.end_time + ':00' : state.end_time || '20:00:00';
+
+      dayRow.innerHTML = `
+        <div class="schedule-day-left" style="display:flex; align-items:center;">
+          <label class="schedule-day-toggle">
+            <input type="checkbox" class="day-active-checkbox" data-day-id="${day.id}" ${state.is_open ? 'checked' : ''} />
+            <div class="schedule-day-toggle-custom"></div>
+            <span class="schedule-day-name" style="font-size: var(--text-sm); font-weight: 700; margin-left: 8px;">${day.name}</span>
+          </label>
+        </div>
+        
+        <div class="schedule-day-right" style="${state.is_open ? '' : 'opacity: 0.4; pointer-events: none;'} display: flex; align-items: center; gap: 8px;">
+          <select class="schedule-time-select start-time-select" data-day-id="${day.id}" style="height: 32px; font-size: var(--text-xs); border: 1px solid var(--border-soft); border-radius: var(--radius-xs); background: var(--bg-secondary); color: var(--text-primary); padding-inline: 4px;">
+            ${TIME_OPTIONS.map(opt => `<option value="${opt.value}" ${startTime === opt.value ? 'selected' : ''}>${opt.label}</option>`).join('')}
+          </select>
+          <span class="schedule-time-separator" style="font-size: var(--text-xs); color: var(--text-muted);">a</span>
+          <select class="schedule-time-select end-time-select" data-day-id="${day.id}" style="height: 32px; font-size: var(--text-xs); border: 1px solid var(--border-soft); border-radius: var(--radius-xs); background: var(--bg-secondary); color: var(--text-primary); padding-inline: 4px;">
+            ${TIME_OPTIONS.map(opt => `<option value="${opt.value}" ${endTime === opt.value ? 'selected' : ''}>${opt.label}</option>`).join('')}
+          </select>
+        </div>
+      `;
+
+      gridContainer.appendChild(dayRow);
+    });
+
+    // Re-bind change listeners
+    gridContainer.querySelectorAll('.day-active-checkbox').forEach(chk => {
+      chk.addEventListener('change', (e) => {
+        const dayId = parseInt(e.target.dataset.dayId, 10);
+        const sched = localSchedules.find(s => s.day_of_week === dayId);
+        if (sched) {
+          sched.is_open = e.target.checked;
+        } else {
+          localSchedules.push({ day_of_week: dayId, start_time: '08:00:00', end_time: '20:00:00', is_open: e.target.checked });
+        }
+        renderScheduleGrid();
+      });
+    });
+
+    gridContainer.querySelectorAll('.start-time-select').forEach(sel => {
+      sel.addEventListener('change', (e) => {
+        const dayId = parseInt(e.target.dataset.dayId, 10);
+        const sched = localSchedules.find(s => s.day_of_week === dayId);
+        if (sched) sched.start_time = e.target.value;
+      });
+    });
+
+    gridContainer.querySelectorAll('.end-time-select').forEach(sel => {
+      sel.addEventListener('change', (e) => {
+        const dayId = parseInt(e.target.dataset.dayId, 10);
+        const sched = localSchedules.find(s => s.day_of_week === dayId);
+        if (sched) sched.end_time = e.target.value;
+      });
+    });
+  }
+
+  function renderHolidaysList() {
+    if (!holidaysContainer) return;
+    holidaysContainer.innerHTML = '';
+
+    if (localHolidays.length === 0) {
+      holidaysContainer.innerHTML = `
+        <div style="text-align: center; padding: var(--space-6); color: var(--text-muted); border: 1px dashed var(--border-soft); border-radius: var(--radius-sm);">
+          <i data-lucide="calendar" size="20" style="margin-bottom: 6px; color: var(--text-muted); display: inline-block;"></i>
+          <p style="font-size: var(--text-xs); margin: 0;">No hay días feriados registrados.</p>
+        </div>
+      `;
+      if (typeof lucide !== 'undefined') {
+        lucide.createIcons({ node: holidaysContainer });
+      }
+      return;
+    }
+
+    const listHtml = `
+      <div style="display: flex; flex-direction: column; gap: var(--space-2); max-height: 250px; overflow-y: auto; padding-right: 4px;">
+        ${localHolidays.map(h => `
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--space-3); background: var(--bg-secondary); border: 1px solid var(--border-soft); border-radius: var(--radius-xs);">
+            <div>
+              <div style="font-size: var(--text-sm); font-weight: 700; color: var(--text-primary);">${h.date}</div>
+              <div style="font-size: var(--text-xs); color: var(--text-muted);">${h.description || 'Feriado / Cerrado'}</div>
+            </div>
+            <button type="button" class="btn-delete-holiday" data-id="${h.id}" style="background: none; border: none; color: #ef4444; cursor: pointer; padding: var(--space-2); display: flex; align-items: center; justify-content: center; transition: all var(--transition-base);">
+              <i data-lucide="trash-2" size="14"></i>
+            </button>
+          </div>
+        `).join('')}
+      </div>
+    `;
+
+    holidaysContainer.innerHTML = listHtml;
+
+    if (typeof lucide !== 'undefined') {
+      lucide.createIcons({
+        attrs: { 'stroke-width': 2.5, 'size': 14 },
+        nameAttr: 'data-lucide',
+        node: holidaysContainer
+      });
+    }
+
+    // Bind delete buttons
+    holidaysContainer.querySelectorAll('.btn-delete-holiday').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const id = btn.dataset.id;
+        localHolidays = localHolidays.filter(h => h.id !== id);
+        renderHolidaysList();
+      });
+    });
+  }
+
+  // Bind Add Holiday Button
+  const addHolidayBtn = root.querySelector('#btn-add-holiday');
+  if (addHolidayBtn) {
+    const holidayDateInput = root.querySelector('#new-holiday-date');
+    if (holidayDateInput) {
+      holidayDateInput.min = new Date().toISOString().split('T')[0];
+    }
+
+    addHolidayBtn.addEventListener('click', () => {
+      const dateInput = root.querySelector('#new-holiday-date');
+      const descInput = root.querySelector('#new-holiday-desc');
+      
+      const dateVal = dateInput.value;
+      const descVal = descInput.value.trim();
+
+      if (!dateVal) {
+        showToast({ title: 'Fecha requerida', subtitle: 'Por favor selecciona una fecha.', type: 'warning' });
+        return;
+      }
+
+      if (localHolidays.some(h => h.date === dateVal)) {
+        showToast({ title: 'Fecha duplicada', subtitle: 'Esta fecha ya está en la lista.', type: 'warning' });
+        return;
+      }
+
+      localHolidays.push({
+        id: Math.random().toString(36).substring(2, 9),
+        date: dateVal,
+        description: descVal
+      });
+
+      dateInput.value = '';
+      descInput.value = '';
+
+      renderHolidaysList();
+    });
+  }
+
+  // Bind Tab Click Handlers
+  if (mode === 'edit') {
+    root.querySelectorAll('.biz-tab-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const tabName = btn.dataset.tab;
+
+        root.querySelectorAll('.biz-tab-btn').forEach(b => {
+          b.classList.remove('active');
+          b.style.borderBottomColor = 'transparent';
+          b.style.color = 'var(--text-muted)';
+        });
+        btn.classList.add('active');
+        btn.style.borderBottomColor = 'var(--accent-purple)';
+        btn.style.color = 'var(--text-primary)';
+
+        root.querySelectorAll('.biz-tab-content').forEach(c => {
+          c.classList.remove('active');
+          c.style.display = 'none';
+        });
+        const content = root.querySelector(`#biz-tab-content-${tabName}`);
+        if (content) {
+          content.classList.add('active');
+          content.style.display = 'block';
+        }
+      });
+    });
+  }
 
   // Inicializar Lucide
   if (typeof lucide !== 'undefined') {
@@ -238,6 +578,13 @@ export function openBusinessModal({ mode = 'create', businessData = null, onSave
   const saveBtn = root.querySelector('#biz-save-btn');
   const nameInput = root.querySelector('#biz-name');
   const phoneInput = root.querySelector('#biz-phone');
+
+  // Strict Phone validation constraints: only digits, max 10
+  phoneInput.addEventListener('input', (e) => {
+    let val = e.target.value.replace(/\D/g, '');
+    if (val.length > 10) val = val.substring(0, 10);
+    e.target.value = val;
+  });
   const addressInput = root.querySelector('#biz-address');
   const fileInput = root.querySelector('#logo-file-input');
   const logoPreview = root.querySelector('#logo-preview');
@@ -373,9 +720,15 @@ export function openBusinessModal({ mode = 'create', businessData = null, onSave
     }
 
     // Validar teléfono (obligatorio)
-    if (!phoneInput.value.trim()) {
+    const phoneVal = phoneInput.value.trim();
+    if (!phoneVal || phoneVal.length !== 10 || !phoneVal.startsWith('3')) {
       phoneInput.classList.add('form-input-error');
       hasError = true;
+      showToast({
+        title: 'Teléfono inválido',
+        subtitle: 'El teléfono debe tener exactamente 10 dígitos y empezar con 3.',
+        type: 'warning'
+      });
     }
 
     if (hasError) {
@@ -431,7 +784,52 @@ export function openBusinessModal({ mode = 'create', businessData = null, onSave
         payload.slug = finalSlug;
         await addBusiness(payload);
       } else {
-        await updateBusiness(businessData.id, payload);
+        // Validar horarios antes de guardar
+        let schedulesValid = true;
+        localSchedules.forEach(s => {
+          if (s.is_open) {
+            const startParts = s.start_time.split(':').map(Number);
+            const endParts = s.end_time.split(':').map(Number);
+            const startMins = startParts[0] * 60 + startParts[1];
+            const endMins = endParts[0] * 60 + endParts[1];
+            if (startMins >= endMins) {
+              schedulesValid = false;
+              const dayName = DAYS_OF_WEEK.find(d => d.id === s.day_of_week)?.name || 'Día';
+              showToast({
+                title: 'Error de Horario',
+                subtitle: `La hora de inicio en el día ${dayName} debe ser menor que la de fin.`,
+                type: 'error'
+              });
+            }
+          }
+        });
+        if (!schedulesValid) {
+          saveBtn.disabled = false;
+          saveBtn.textContent = 'Guardar Cambios';
+          return;
+        }
+
+        // Guardar negocio con has_configured_hours en true
+        await updateBusiness(businessData.id, { ...payload, has_configured_hours: true });
+
+        // Guardar horarios
+        await updateBusinessSchedules(businessData.id, localSchedules);
+
+        // Guardar feriados (delete + insert)
+        await supabase.from('business_holidays').delete().eq('business_id', businessData.id);
+        if (localHolidays.length > 0) {
+          const { error: holidayError } = await supabase.from('business_holidays').insert(
+            localHolidays.map(h => ({
+              business_id: businessData.id,
+              date: h.date,
+              description: h.description || null
+            }))
+          );
+          if (holidayError) {
+            console.error('Error saving holidays:', holidayError);
+            throw holidayError;
+          }
+        }
       }
 
       showToast({

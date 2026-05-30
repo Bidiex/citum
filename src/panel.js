@@ -14,6 +14,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     lucide.createIcons();
   }
 
+  // Cargar negocios antes de inicializar la vista para evitar condiciones de carrera
+  const businesses = await getBusinesses();
+  if (businesses.length === 0) {
+    window.location.replace('/onboarding.html');
+    return;
+  }
+
   // 1. Selector de Negocios (Dropdown)
   const bizBtn = document.getElementById('current-business-btn');
   const bizOptions = document.getElementById('selector-options');
@@ -22,7 +29,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const renderBusinessSelector = async () => {
     if (!bizOptions) return;
     
-    const businesses = await getBusinesses();
     const activeId = getActiveBusinessId();
     const activeBiz = getActiveBusiness();
     
@@ -91,6 +97,35 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
       });
     }
+
+    checkBusinessHoursConfig();
+  };
+
+  const checkBusinessHoursConfig = () => {
+    const activeBiz = getActiveBusiness();
+    const banner = document.getElementById('business-hours-banner');
+    if (!banner) return;
+
+    if (activeBiz && !activeBiz.has_configured_hours) {
+      banner.style.display = 'flex';
+      
+      const btn = document.getElementById('btn-configure-hours-banner');
+      if (btn) {
+        btn.onclick = async (e) => {
+          e.preventDefault();
+          const { openBusinessModal } = await import('./components/business-modal.js');
+          openBusinessModal({
+            mode: 'edit',
+            businessData: activeBiz,
+            onSave: async () => {
+              window.location.reload();
+            }
+          });
+        };
+      }
+    } else {
+      banner.style.display = 'none';
+    }
   };
 
   if (bizBtn && bizOptions) {
@@ -149,6 +184,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   const navigate = async (section) => {
     const container = document.getElementById('main-content');
     if (!container) return;
+
+    // Limpiar suscripciones previas o temporizadores adjuntos a la vista anterior
+    if (typeof container.cleanup === 'function') {
+      try {
+        container.cleanup();
+      } catch (err) {
+        console.error('[navigate cleanup] Error:', err);
+      }
+      container.cleanup = null;
+    }
 
     // Mostrar estado de carga
     container.innerHTML = `

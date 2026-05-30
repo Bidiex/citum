@@ -191,7 +191,7 @@
       </button>
       
       <p class="auth-footer-link" id="auth-switch-link">
-        ¿No tienes una cuenta? <a href="#" id="link-auth-toggle">Regístrate gratis</a>
+        ¿No tienes una cuenta? <a href="/onboarding.html" id="link-auth-toggle">Regístrate gratis</a>
       </p>
     </div>
   </div>
@@ -209,35 +209,7 @@
       }
     });
 
-    // --- Toggle Login / Registro ---
-    const toggleLink   = document.getElementById('link-auth-toggle');
-    const titleText    = document.getElementById('auth-title-text');
-    const subtitleText = document.getElementById('auth-subtitle-text');
     const submitBtn    = document.getElementById('btn-auth-submit');
-    const switchLink   = document.getElementById('auth-switch-link');
-    let isRegistering  = false;
-
-    function bindToggle() {
-      const el = document.getElementById('link-auth-toggle');
-      if (!el) return;
-      el.addEventListener('click', (e) => {
-        e.preventDefault();
-        isRegistering = !isRegistering;
-        if (isRegistering) {
-          titleText.textContent    = 'Crea tu cuenta gratis';
-          subtitleText.textContent = 'Comienza a gestionar tus citas de forma inteligente hoy.';
-          submitBtn.textContent    = 'Crear Cuenta';
-          switchLink.innerHTML     = '¿Ya tienes una cuenta? <a href="#" id="link-auth-toggle">Inicia sesión</a>';
-        } else {
-          titleText.textContent    = 'Bienvenido de nuevo';
-          subtitleText.textContent = 'Ingresa tus credenciales para acceder a tu panel.';
-          submitBtn.textContent    = 'Ingresar al Panel';
-          switchLink.innerHTML     = '¿No tienes una cuenta? <a href="#" id="link-auth-toggle">Regístrate gratis</a>';
-        }
-        bindToggle();
-      });
-    }
-    bindToggle();
 
     // --- Manejo del formulario ---
     const form       = document.getElementById('auth-form');
@@ -267,24 +239,13 @@
       const password = passInput.value;
 
       submitBtn.disabled    = true;
-      submitBtn.textContent = isRegistering ? 'Creando cuenta...' : 'Ingresando...';
+      submitBtn.textContent = 'Ingresando...';
 
       try {
-        let result;
-        if (isRegistering) {
-          result = await auth.register(email, password, email.split('@')[0]);
-          if (result.error) throw result.error;
-          // Informar al usuario que verifique email
-          showError('¡Cuenta creada! Revisa tu correo para confirmarla.', true);
-          submitBtn.textContent = 'Crear Cuenta';
-          submitBtn.disabled = false;
-          return;
-        } else {
-          result = await auth.login(email, password);
-          if (result.error) throw result.error;
-          window.location.replace('/panel.html');
-          return;
-        }
+        const result = await auth.login(email, password);
+        if (result.error) throw result.error;
+        window.location.replace('/panel.html');
+        return;
       } catch (err) {
         const msg = err?.message || 'Error al autenticar. Intenta de nuevo.';
         if (msg.toLowerCase().includes('invalid login')) {
@@ -295,7 +256,7 @@
           showError(msg);
         }
         submitBtn.disabled    = false;
-        submitBtn.textContent = isRegistering ? 'Crear Cuenta' : 'Ingresar al Panel';
+        submitBtn.textContent = 'Ingresar al Panel';
       }
     });
 

@@ -1,7 +1,7 @@
 // appointment-modal.js — Componente Modal de Nueva/Editar Cita para Recepcionistas
 import { showToast } from '../utils/toast.js';
 import { getColombiaTodayStr, getColombiaTimeParts } from '../utils/format.js';
-import { searchClientsByName, getActiveBusinessId, getServices, fetchProfessionals } from '../utils/businessState.js';
+import { searchClientsByName, getActiveBusinessId, getServices, fetchProfessionals, getBusinessSchedules, getBusinessHolidays } from '../utils/businessState.js';
 
 const TIME_SLOTS = [
   '08:00 AM', '08:30 AM', '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM',
@@ -33,10 +33,12 @@ function formatTimeString(minutesSinceMidnight) {
 export async function openAppointmentModal({ appointments = [], onSave = null, mode = 'create', appointmentData = null } = {}) {
   const bizId = getActiveBusinessId();
   
-  // Carga asíncrona de servicios y profesionales
-  const [servicesData, professionalsData] = await Promise.all([
+  // Carga asíncrona de servicios, profesionales, horarios del negocio y feriados
+  const [servicesData, professionalsData, bizSchedules, bizHolidays] = await Promise.all([
     getServices(bizId),
-    fetchProfessionals(bizId)
+    fetchProfessionals(bizId),
+    getBusinessSchedules(bizId),
+    getBusinessHolidays(bizId)
   ]);
   
   const SERVICES = servicesData.filter(s => s.active !== false);
@@ -190,7 +192,7 @@ export async function openAppointmentModal({ appointments = [], onSave = null, m
           
           <div class="form-group">
             <label for="apt-date">Fecha de la cita</label>
-            <input type="date" id="apt-date" class="form-input" value="${dateVal}" />
+            <input type="date" id="apt-date" class="form-input" value="${dateVal}" min="${todayStr}" />
           </div>
 
           <div class="form-group">
@@ -342,6 +344,13 @@ export async function openAppointmentModal({ appointments = [], onSave = null, m
   setupAutocomplete(nameInput);
   setupAutocomplete(phoneInput);
 
+  // Strict Phone validation constraints: only digits, max 10
+  phoneInput.addEventListener('input', (e) => {
+    let val = e.target.value.replace(/\D/g, '');
+    if (val.length > 10) val = val.substring(0, 10);
+    e.target.value = val;
+  });
+
   // Inicializar servicios seleccionados en el estado
   let selectedServices = [];
   if (mode === 'edit' && appointmentData) {
@@ -421,11 +430,42 @@ export async function openAppointmentModal({ appointments = [], onSave = null, m
     const profName = profSelect.value;
     const totalDuration = selectedServices.reduce((sum, s) => sum + s.duration, 0) || 30;
 
+    // Verificar si la fecha seleccionada es un día feriado en el negocio
+    const isHoliday = bizHolidays.some(h => h.date === dateVal);
+    
+    // Verificar si el negocio abre este día de la semana
+    const dateObj = new Date(dateVal + 'T00:00:00');
+    const dow = dateObj.getDay();
+    const bizSched = bizSchedules.find(s => s.day_of_week === dow);
+    const isBizClosed = bizSched ? !bizSched.is_open : false;
+
+    // Obtener los minutos desde medianoche de la jornada comercial
+    const parseTimeToMinutes = (tStr) => {
+      const [h, m] = tStr.split(':').map(Number);
+      return h * 60 + m;
+    };
+    const bizStartMin = bizSched ? parseTimeToMinutes(bizSched.start_time) : 8 * 60; // 8:00 AM por defecto
+    const bizEndMin = bizSched ? parseTimeToMinutes(bizSched.end_time) : 20 * 60;   // 8:00 PM por defecto
+
     TIME_SLOTS.forEach(slot => {
       const slotStart = parseTimeString(slot);
       const isOccupied = !isNextFreeMode && checkOverlap(profName, slotStart, totalDuration, dateVal);
-      const isPastClose = slotStart + totalDuration > 20 * 60; // posterior a las 8:00 PM
-      const disabled = isOccupied || isPastClose;
+      const isPastClose = slotStart + totalDuration > bizEndMin; 
+      const isBeforeOpen = slotStart < bizStartMin;
+      
+      // Check if slot is in the past
+      let isPastTime = false;
+      if (dateVal === todayStr) {
+        const nowTimeParts = getColombiaTimeParts();
+        const currentMinutes = nowTimeParts.hours * 60 + nowTimeParts.minutes;
+        if (slotStart < currentMinutes) {
+          isPastTime = true;
+        }
+      } else if (dateVal < todayStr) {
+        isPastTime = true;
+      }
+
+      const disabled = isOccupied || isPastClose || isBeforeOpen || isPastTime || isHoliday || isBizClosed;
 
       const chip = document.createElement('div');
       chip.className = `time-chip${selectedTimeSlot === slot ? ' selected' : ''}${disabled ? ' disabled' : ''}`;
@@ -442,6 +482,20 @@ export async function openAppointmentModal({ appointments = [], onSave = null, m
 
       timeChipsContainer.appendChild(chip);
     });
+
+    // Mostrar aviso si es feriado o está cerrado el negocio
+    const hintBox = root.querySelector('#prof-hint-box');
+    if (hintBox) {
+      if (isHoliday) {
+        profHintText.textContent = '⚠️ El negocio se encuentra cerrado este día por feriado / festivo.';
+        hintBox.classList.add('warning-hint');
+      } else if (isBizClosed) {
+        profHintText.textContent = '⚠️ El negocio no abre los días seleccionados en su horario semanal.';
+        hintBox.classList.add('warning-hint');
+      } else {
+        hintBox.classList.remove('warning-hint');
+      }
+    }
   }
 
   // Actualizar indicador de disponibilidad y profesional libre
@@ -556,6 +610,9 @@ export async function openAppointmentModal({ appointments = [], onSave = null, m
   });
 
   dateInput.addEventListener('change', () => {
+    if (dateInput.value < todayStr) {
+      dateInput.value = todayStr;
+    }
     selectedTimeSlot = '';
     updateAvailabilityHint();
     renderTimeChips();
@@ -670,9 +727,15 @@ export async function openAppointmentModal({ appointments = [], onSave = null, m
     }
 
     // 2. Validar teléfono
-    if (!phoneInput.value.trim()) {
+    const phoneVal = phoneInput.value.trim();
+    if (!phoneVal || phoneVal.length !== 10 || !phoneVal.startsWith('3')) {
       phoneInput.classList.add('form-input-error');
       hasError = true;
+      showToast({
+        title: 'Teléfono inválido',
+        subtitle: 'El teléfono debe tener exactamente 10 dígitos y empezar con 3.',
+        type: 'warning'
+      });
     }
 
     // 3. Validar al menos un servicio seleccionado
@@ -688,6 +751,60 @@ export async function openAppointmentModal({ appointments = [], onSave = null, m
       timeChipsContainer.style.outlineOffset = '4px';
       timeChipsContainer.style.borderRadius = 'var(--radius-sm)';
       hasError = true;
+    }
+
+    // 5. Validar fecha y hora futuras/presentes y horarios del negocio
+    const selectedDate = dateInput.value;
+    let isPast = false;
+    if (selectedDate < todayStr) {
+      isPast = true;
+    } else if (selectedDate === todayStr && selectedTimeSlot) {
+      const nowTimeParts = getColombiaTimeParts();
+      const currentMinutes = nowTimeParts.hours * 60 + nowTimeParts.minutes;
+      if (parseTimeString(selectedTimeSlot) < currentMinutes) {
+        isPast = true;
+      }
+    }
+    if (isPast) {
+      showToast({
+        title: 'Fecha u hora pasada',
+        subtitle: 'No se pueden agendar citas en el pasado.',
+        type: 'warning'
+      });
+      hasError = true;
+    }
+
+    const isHoliday = bizHolidays.some(h => h.date === selectedDate);
+    const dateObj = new Date(selectedDate + 'T00:00:00');
+    const dow = dateObj.getDay();
+    const bizSched = bizSchedules.find(s => s.day_of_week === dow);
+    const isBizClosed = bizSched ? !bizSched.is_open : false;
+
+    if (isHoliday || isBizClosed) {
+      showToast({
+        title: 'Negocio Cerrado',
+        subtitle: 'El negocio se encuentra cerrado el día seleccionado.',
+        type: 'warning'
+      });
+      hasError = true;
+    } else if (selectedTimeSlot) {
+      const slotStart = parseTimeString(selectedTimeSlot);
+      const parseTimeToMinutes = (tStr) => {
+        const [h, m] = tStr.split(':').map(Number);
+        return h * 60 + m;
+      };
+      const bizStartMin = bizSched ? parseTimeToMinutes(bizSched.start_time) : 8 * 60;
+      const bizEndMin = bizSched ? parseTimeToMinutes(bizSched.end_time) : 20 * 60;
+      
+      const totalDuration = selectedServices.reduce((sum, s) => sum + s.duration, 0) || 30;
+      if (slotStart < bizStartMin || slotStart + totalDuration > bizEndMin) {
+        showToast({
+          title: 'Fuera de Horario',
+          subtitle: 'La cita está fuera del horario de atención del negocio.',
+          type: 'warning'
+        });
+        hasError = true;
+      }
     }
 
     if (hasError) {

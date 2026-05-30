@@ -114,8 +114,14 @@ export async function init(container) {
   });
 
   // SUSCRIPCIÓN EN TIEMPO REAL (Realtime)
+  const channelName = `appointments-changes-${businessId}`;
+
+  // Eliminar canal previo con el mismo nombre si ya existía para evitar duplicación y el error "cannot add postgres_changes callbacks after subscribe"
+  const existingChannel = supabase.channel(channelName);
+  supabase.removeChannel(existingChannel);
+
   const channel = supabase
-    .channel(`appointments-changes-${businessId}`)
+    .channel(channelName)
     .on('postgres_changes', { 
       event: '*', 
       schema: 'public', 
@@ -127,19 +133,8 @@ export async function init(container) {
     })
     .subscribe();
 
-  // Limpiar suscripción cuando el contenedor sea destruido / removido de la vista
-  const observer = new MutationObserver((mutations) => {
-    mutations.forEach((mutation) => {
-      mutation.removedNodes.forEach((node) => {
-        if (node === container || node.contains(container)) {
-          supabase.removeChannel(channel);
-          observer.disconnect();
-        }
-      });
-    });
-  });
-  
-  if (container.parentNode) {
-    observer.observe(container.parentNode, { childList: true });
-  }
+  // Registrar cleanup para la navegación SPA
+  container.cleanup = () => {
+    supabase.removeChannel(channel);
+  };
 }

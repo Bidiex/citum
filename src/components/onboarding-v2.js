@@ -62,6 +62,7 @@ const activeSteps = [
 
 let currentIndex = 0;
 let isLoginMode = false;
+let currentSession = null;
 
 // Step title mappings
 const stepTitles = {
@@ -87,6 +88,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   // Check if returning from Google Auth flow
   const { session } = await auth.getSession();
+  currentSession = session;
   if (session) {
     const pendingDataStr = localStorage.getItem('citum_onboarding_pending_data');
     if (pendingDataStr) {
@@ -549,6 +551,7 @@ function validateCurrentStep() {
   }
 
   if (stepId === 'step-auth') {
+    if (currentSession) return true;
     const email = isLoginMode 
       ? document.getElementById('login-email').value.trim() 
       : document.getElementById('auth-email').value.trim();
@@ -584,6 +587,27 @@ function updateUI() {
   const currentEl = document.getElementById(stepId);
   if (currentEl) currentEl.classList.add('active');
 
+  // Toggle auth step modes if on step-auth
+  if (stepId === 'step-auth') {
+    const authSignupMode = document.getElementById('auth-signup-mode');
+    const authLoginMode = document.getElementById('auth-login-mode');
+    const authLoggedInMode = document.getElementById('auth-logged-in-mode');
+    const loggedInEmail = document.getElementById('logged-in-email');
+
+    if (currentSession) {
+      if (authSignupMode) authSignupMode.style.display = 'none';
+      if (authLoginMode) authLoginMode.style.display = 'none';
+      if (authLoggedInMode) {
+        authLoggedInMode.style.display = 'block';
+        if (loggedInEmail) loggedInEmail.textContent = currentSession.user.email;
+      }
+    } else {
+      if (authLoggedInMode) authLoggedInMode.style.display = 'none';
+      if (authSignupMode) authSignupMode.style.display = isLoginMode ? 'none' : 'block';
+      if (authLoginMode) authLoginMode.style.display = isLoginMode ? 'block' : 'none';
+    }
+  }
+
   // Progress bar
   const progressBar = document.getElementById('wizard-progress-bar');
   if (progressBar) {
@@ -597,9 +621,17 @@ function updateUI() {
   const headerTitle = document.getElementById('wizard-title');
   const headerSubtitle = document.getElementById('wizard-subtitle');
   if (headerTitle && headerSubtitle && stepTitles[stepId]) {
-    if (stepId === 'step-auth' && isLoginMode) {
-      headerTitle.textContent = 'Inicia Sesión';
-      headerSubtitle.textContent = 'Ingresa a tu cuenta para registrar tu negocio';
+    if (stepId === 'step-auth') {
+      if (currentSession) {
+        headerTitle.textContent = 'Confirmar Cuenta';
+        headerSubtitle.textContent = 'Asocia tu negocio a tu cuenta de Citum';
+      } else if (isLoginMode) {
+        headerTitle.textContent = 'Inicia Sesión';
+        headerSubtitle.textContent = 'Ingresa a tu cuenta para registrar tu negocio';
+      } else {
+        headerTitle.textContent = stepTitles[stepId].title;
+        headerSubtitle.textContent = stepTitles[stepId].subtitle;
+      }
     } else {
       headerTitle.textContent = stepTitles[stepId].title;
       headerSubtitle.textContent = stepTitles[stepId].subtitle;
@@ -620,9 +652,13 @@ function updateUI() {
     }
     if (btnNext) {
       if (stepId === 'step-auth') {
-        btnNext.innerHTML = isLoginMode 
-          ? 'Iniciar Sesión <i data-lucide="log-in" style="margin-left: 8px;"></i>' 
-          : 'Registrar Negocio <i data-lucide="check" style="margin-left: 8px;"></i>';
+        if (currentSession) {
+          btnNext.innerHTML = 'Crear Negocio <i data-lucide="check" style="margin-left: 8px;"></i>';
+        } else {
+          btnNext.innerHTML = isLoginMode 
+            ? 'Iniciar Sesión <i data-lucide="log-in" style="margin-left: 8px;"></i>' 
+            : 'Registrar Negocio <i data-lucide="check" style="margin-left: 8px;"></i>';
+        }
       } else {
         btnNext.innerHTML = 'Siguiente <i data-lucide="arrow-right" style="margin-left: 8px;"></i>';
       }
@@ -702,25 +738,31 @@ async function handleNext() {
     if (typeof lucide !== 'undefined') lucide.createIcons();
 
     try {
-      let user = null;
-      if (isLoginMode) {
-        const { user: loggedUser, error } = await auth.login(onboardingData.auth.email, onboardingData.auth.password);
-        if (error) throw error;
-        user = loggedUser;
+      let userId = null;
+      if (currentSession) {
+        userId = currentSession.user.id;
       } else {
-        const { user: registeredUser, error } = await auth.register(
-          onboardingData.auth.email, 
-          onboardingData.auth.password, 
-          onboardingData.business.name
-        );
-        if (error) throw error;
-        user = registeredUser;
+        let user = null;
+        if (isLoginMode) {
+          const { user: loggedUser, error } = await auth.login(onboardingData.auth.email, onboardingData.auth.password);
+          if (error) throw error;
+          user = loggedUser;
+        } else {
+          const { user: registeredUser, error } = await auth.register(
+            onboardingData.auth.email, 
+            onboardingData.auth.password, 
+            onboardingData.business.name
+          );
+          if (error) throw error;
+          user = registeredUser;
+        }
+
+        if (!user) throw new Error('Ocurrió un error al autenticar.');
+        userId = user.id;
       }
 
-      if (!user) throw new Error('Ocurrió un error al autenticar.');
-
       // Persist onboarding data to Supabase database
-      const slug = await persistAll(user.id);
+      const slug = await persistAll(userId);
 
       // Setup Step 9 Success view
       const successTitle = document.getElementById('success-message-title');
@@ -729,7 +771,11 @@ async function handleNext() {
         successTitle.textContent = `¡Genial!, los clientes de ${onboardingData.business.name} ya pueden agendar sus citas`;
       }
       if (successDesc) {
-        successDesc.textContent = `Tu cuenta ha sido creada y el negocio está listo. Tu enlace público de reservas: citum.app/b/${slug}`;
+        if (currentSession) {
+          successDesc.textContent = `El negocio está listo. Tu enlace público de reservas: citum.app/b/${slug}`;
+        } else {
+          successDesc.textContent = `Tu cuenta ha sido creada y el negocio está listo. Tu enlace público de reservas: citum.app/b/${slug}`;
+        }
       }
 
       // Configure booking links

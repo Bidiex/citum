@@ -25,16 +25,17 @@ document.addEventListener('DOMContentLoaded', () => {
       const isOpen = mobileNavOverlay.classList.toggle('open');
       mobileMenuBtn.setAttribute('aria-expanded', isOpen);
       
-      // Cambiar ícono o animación de líneas (opcional, controlamos por CSS básico)
-      const lines = mobileMenuBtn.querySelectorAll('.menu-line');
-      if (isOpen) {
-        lines[0].style.transform = 'translateY(8px) rotate(45deg)';
-        lines[1].style.opacity = '0';
-        lines[2].style.transform = 'translateY(-8px) rotate(-45deg)';
-      } else {
-        lines[0].style.transform = 'none';
-        lines[1].style.opacity = '1';
-        lines[2].style.transform = 'none';
+      // Cambiar ícono Lucide entre menú y cerrar (x)
+      const icon = mobileMenuBtn.querySelector('i');
+      if (icon) {
+        if (isOpen) {
+          icon.setAttribute('data-lucide', 'x');
+        } else {
+          icon.setAttribute('data-lucide', 'menu');
+        }
+        if (typeof lucide !== 'undefined') {
+          lucide.createIcons({ node: mobileMenuBtn });
+        }
       }
     });
 
@@ -42,10 +43,13 @@ document.addEventListener('DOMContentLoaded', () => {
     mobileNavOverlay.querySelectorAll('.mobile-nav-link').forEach(link => {
       link.addEventListener('click', () => {
         mobileNavOverlay.classList.remove('open');
-        const lines = mobileMenuBtn.querySelectorAll('.menu-line');
-        lines[0].style.transform = 'none';
-        lines[1].style.opacity = '1';
-        lines[2].style.transform = 'none';
+        const icon = mobileMenuBtn.querySelector('i');
+        if (icon) {
+          icon.setAttribute('data-lucide', 'menu');
+          if (typeof lucide !== 'undefined') {
+            lucide.createIcons({ node: mobileMenuBtn });
+          }
+        }
       });
     });
   }

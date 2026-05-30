@@ -182,27 +182,36 @@
 /* Mobile Menu Button */
 .menu-btn {
   display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  width: 24px;
-  height: 18px;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm, 12px);
   cursor: pointer;
-  background: transparent;
-  border: none;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-soft, rgba(255, 255, 255, 0.08));
+  color: var(--text-primary);
+  padding: 0;
+  transition: background-color var(--transition-base, 250ms), border-color var(--transition-base, 250ms);
+}
+
+.menu-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(139, 92, 255, 0.2);
+}
+
+.menu-btn i {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 @media (min-width: 1024px) {
   .menu-btn {
     display: none;
   }
-}
-
-.menu-line {
-  height: 2px;
-  width: 100%;
-  background-color: var(--text-primary);
-  border-radius: var(--radius-pill);
-  transition: transform var(--transition-base), opacity var(--transition-base);
 }
 
 /* Mobile Nav Overlay */
@@ -847,4 +856,17 @@
 
 .footer-legal-link:hover {
   color: var(--text-primary);
+}
+
+/* Hide navigation buttons in navbar on mobile to prevent overflow */
+@media (max-width: 1024px) {
+  #btn-register-nav {
+    display: none;
+  }
+}
+
+@media (max-width: 576px) {
+  #btn-login-nav {
+    display: none;
+  }
 }

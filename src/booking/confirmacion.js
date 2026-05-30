@@ -1,4 +1,5 @@
 // confirmacion.js — Módulo del paso 3: Resumen y Confirmación de Datos del Cliente
+import { getColombiaTodayStr, getColombiaTimeParts } from '../utils/format.js';
 
 export function init(container, state, actions) {
   const total = state.selectedServices.reduce((sum, s) => sum + s.price, 0);
@@ -230,6 +231,15 @@ export function init(container, state, actions) {
   }
 
   // Enlazar eventos de botones
+  const phoneInput = container.querySelector('#client-phone');
+  if (phoneInput) {
+    phoneInput.addEventListener('input', (e) => {
+      let val = e.target.value.replace(/\D/g, '');
+      if (val.length > 10) val = val.substring(0, 10);
+      e.target.value = val;
+    });
+  }
+
   container.querySelector('#btn-back-step-3').addEventListener('click', () => {
     // Guardar estado parcial del form antes de volver
     state.clientInfo.name = document.getElementById('client-name').value;
@@ -242,10 +252,46 @@ export function init(container, state, actions) {
   const form = container.querySelector('#booking-client-form');
   form.addEventListener('submit', (e) => {
     e.preventDefault();
+
+    const phoneVal = phoneInput ? phoneInput.value.trim() : '';
+    if (!phoneVal || phoneVal.length !== 10 || !phoneVal.startsWith('3')) {
+      alert('Por favor, ingresa un número de teléfono válido de 10 dígitos que comience con 3.');
+      if (phoneInput) phoneInput.focus();
+      return;
+    }
+
+    // Validar que la fecha y hora seleccionada no sea en el pasado
+    const todayStr = getColombiaTodayStr();
+    const selectedDate = state.selectedDate;
+    const selectedTimeSlot = state.selectedTimeSlot;
+    let isPast = false;
+
+    if (selectedDate < todayStr) {
+      isPast = true;
+    } else if (selectedDate === todayStr && selectedTimeSlot) {
+      const nowParts = getColombiaTimeParts();
+      const currentMinutes = nowParts.hours * 60 + nowParts.minutes;
+      
+      const [time, modifier] = selectedTimeSlot.split(' ');
+      let [hours, minutes] = time.split(':').map(Number);
+      if (modifier === 'PM' && hours < 12) hours += 12;
+      if (modifier === 'AM' && hours === 12) hours = 0;
+      const slotMinutes = hours * 60 + minutes;
+
+      if (slotMinutes < currentMinutes) {
+        isPast = true;
+      }
+    }
+
+    if (isPast) {
+      alert('La fecha u hora seleccionada ya ha pasado. Por favor, selecciona un horario diferente.');
+      actions.back(); // Volver al paso 2
+      return;
+    }
     
     // Guardar estado del formulario
     state.clientInfo.name = document.getElementById('client-name').value;
-    state.clientInfo.phone = document.getElementById('client-phone').value;
+    state.clientInfo.phone = phoneVal;
     state.clientInfo.email = document.getElementById('client-email').value;
     state.clientInfo.notes = document.getElementById('client-notes').value;
 

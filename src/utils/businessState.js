@@ -117,6 +117,10 @@ export async function updateBusiness(id, payload) {
     is_paused: payload.paused || false,
   };
 
+  if (payload.has_configured_hours !== undefined) {
+    update.has_configured_hours = payload.has_configured_hours;
+  }
+
   const { data, error } = await supabase
     .from('businesses')
     .update(update)
@@ -793,4 +797,70 @@ export async function getProfessionalsForBooking(businessId) {
     })),
   }));
 }
+
+// ============================================================
+// GESTIÓN DE HORARIOS Y FERIADOS DEL NEGOCIO
+// ============================================================
+
+/**
+ * Obtiene los horarios semanales de atención de un negocio.
+ */
+export async function getBusinessSchedules(businessId) {
+  if (!businessId) return [];
+  const { data, error } = await supabase
+    .from('business_schedules')
+    .select('*')
+    .eq('business_id', businessId)
+    .order('day_of_week', { ascending: true });
+
+  if (error) {
+    console.error('[getBusinessSchedules] Error:', error.message);
+    return [];
+  }
+  return data || [];
+}
+
+/**
+ * Actualiza los horarios de atención de un negocio.
+ */
+export async function updateBusinessSchedules(businessId, schedules) {
+  if (!businessId || !schedules || schedules.length === 0) return;
+  
+  const { error } = await supabase
+    .from('business_schedules')
+    .upsert(
+      schedules.map(s => ({
+        business_id: businessId,
+        day_of_week: s.day_of_week,
+        start_time: s.start_time,
+        end_time: s.end_time,
+        is_open: s.is_open
+      })),
+      { onConflict: 'business_id,day_of_week' }
+    );
+
+  if (error) {
+    console.error('[updateBusinessSchedules] Error:', error.message);
+    throw error;
+  }
+}
+
+/**
+ * Obtiene el listado de días feriados de un negocio.
+ */
+export async function getBusinessHolidays(businessId) {
+  if (!businessId) return [];
+  const { data, error } = await supabase
+    .from('business_holidays')
+    .select('*')
+    .eq('business_id', businessId)
+    .order('date', { ascending: true });
+
+  if (error) {
+    console.error('[getBusinessHolidays] Error:', error.message);
+    return [];
+  }
+  return data || [];
+}
+
 
