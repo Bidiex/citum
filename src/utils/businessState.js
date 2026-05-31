@@ -706,6 +706,17 @@ export async function createInvoice(businessId, payload, items) {
     }
   }
 
+  // Descontar stock por inventario de manera automática
+  const serviceIds = items.filter(it => it.service_id).map(it => it.service_id);
+  if (serviceIds.length > 0) {
+    try {
+      const { descontarStockPorFactura } = await import('./inventory.js');
+      await descontarStockPorFactura(invoice.id, serviceIds);
+    } catch (err) {
+      console.error('[createInvoice] Error descontando stock de inventario:', err);
+    }
+  }
+
   window.dispatchEvent(new CustomEvent('citum_invoices_changed', { detail: { businessId: bizId } }));
   return { ...invoice, invoice_items: items };
 }

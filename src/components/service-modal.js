@@ -2,12 +2,57 @@
 import { addService, updateService, deleteService, getActiveBusinessId } from '../utils/businessState.js';
 import { showToast } from '../utils/toast.js';
 import { showConfirm } from '../utils/confirm.js';
+import { supabase } from '../core/supabase.js';
 
-export function openServiceModal({ mode = 'create', serviceData = null, onSave = null } = {}) {
+export async function openServiceModal({ mode = 'create', serviceData = null, onSave = null } = {}) {
   // Asegurar que no haya otro overlay abierto
   const existing = document.getElementById('srv-drawer-root');
   if (existing) {
     existing.remove();
+  }
+
+  const bizId = getActiveBusinessId();
+
+  // 1. Cargar productos de inventario activos
+  let activeProducts = [];
+  try {
+    const { data } = await supabase
+      .from('inventory_products')
+      .select('*')
+      .eq('business_id', bizId)
+      .eq('is_active', true)
+      .order('name', { ascending: true });
+    activeProducts = data || [];
+  } catch (err) {
+    console.error('Error al cargar productos de inventario:', err);
+  }
+
+  // 2. Cargar productos ya asociados si es edición
+  let associatedProductsList = [];
+  if (mode === 'edit' && serviceData) {
+    try {
+      const { data, error } = await supabase
+        .from('service_products')
+        .select(`
+          *,
+          inventory_products (name, brand, unit_type, unit_label)
+        `)
+        .eq('service_id', serviceData.id);
+
+      if (!error && data) {
+        associatedProductsList = data.map(sp => ({
+          product_id: sp.product_id,
+          quantity_used: Number(sp.quantity_used),
+          product_name: sp.inventory_products?.brand 
+            ? `${sp.inventory_products.name} (${sp.inventory_products.brand})` 
+            : sp.inventory_products?.name || 'Producto eliminado',
+          unit_type: sp.inventory_products?.unit_type || 'unit',
+          unit_label: sp.inventory_products?.unit_label || ''
+        }));
+      }
+    } catch (err) {
+      console.error('Error al cargar consumos de productos:', err);
+    }
   }
 
   // Valores iniciales
@@ -95,6 +140,41 @@ export function openServiceModal({ mode = 'create', serviceData = null, onSave =
             <option value="false" ${!active ? 'selected' : ''}>Inactivo (Oculto)</option>
           </select>
         </div>
+
+        <!-- Sección Colapsable de Productos Asociados -->
+        <div class="form-group" style="margin-top: var(--space-6); border-top: 1px solid var(--border-soft); padding-top: var(--space-4);">
+          <div id="toggle-service-products" style="display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none;">
+            <span style="font-weight: 700; font-size: var(--text-sm); display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="chevron-right" id="arrow-service-products" style="transition: transform var(--transition-base);"></i>
+              Productos que se usan en este servicio <span style="font-weight: normal; color: var(--text-secondary); font-size: var(--text-xs);">(opcional)</span>
+            </span>
+          </div>
+          
+          <div id="service-products-content" style="display: none; margin-top: var(--space-4); padding-left: 20px;">
+            <!-- Tabla / Lista de productos asociados -->
+            <div id="service-products-list" style="margin-bottom: var(--space-4);"></div>
+
+            <!-- Fila para agregar producto -->
+            <div style="display: grid; grid-template-columns: 2fr 1.2fr auto; gap: var(--space-2); align-items: end;">
+              <div class="form-group" style="margin-bottom: 0;">
+                <label for="add-sp-product" style="font-size: var(--text-xs);">Seleccionar Producto</label>
+                <select id="add-sp-product" class="form-input" style="height: 36px; padding-block: 0; font-size: var(--text-xs);">
+                  <option value="">Selecciona un producto...</option>
+                  ${activeProducts.map(p => `
+                    <option value="${p.id}" data-name="${p.name} ${p.brand ? `(${p.brand})` : ''}" data-unit-type="${p.unit_type}" data-unit-label="${p.unit_label || ''}">${p.name} ${p.brand ? `(${p.brand})` : ''}</option>
+                  `).join('')}
+                </select>
+              </div>
+              <div class="form-group" style="margin-bottom: 0;">
+                <label for="add-sp-qty" style="font-size: var(--text-xs);">Cantidad</label>
+                <input type="number" id="add-sp-qty" class="form-input" placeholder="Cantidad" min="0.001" step="any" style="height: 36px; padding-block: 0; font-size: var(--text-xs);" />
+              </div>
+              <button type="button" class="btn btn-secondary" id="btn-add-sp" style="height: 36px; padding-inline: var(--space-3); font-size: var(--text-xs); font-weight: 700; display: flex; align-items: center; gap: 4px;">
+                <i data-lucide="plus" size="14"></i> Agregar
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="biz-drawer-footer">
@@ -117,10 +197,7 @@ export function openServiceModal({ mode = 'create', serviceData = null, onSave =
   // Inicializar Lucide
   if (typeof lucide !== 'undefined') {
     lucide.createIcons({
-      attrs: {
-        'stroke-width': 2,
-        'size': 18
-      },
+      attrs: { 'stroke-width': 2, 'size': 18 },
       nameAttr: 'data-lucide',
       node: root
     });
@@ -137,6 +214,16 @@ export function openServiceModal({ mode = 'create', serviceData = null, onSave =
   const activeInput = root.querySelector('#srv-active');
   const deleteBtn = root.querySelector('#srv-delete-btn');
 
+  // Colapsable
+  const toggleSP = root.querySelector('#toggle-service-products');
+  const contentSP = root.querySelector('#service-products-content');
+  const arrowSP = root.querySelector('#arrow-service-products');
+
+  // Agregar insumos
+  const selectSP = root.querySelector('#add-sp-product');
+  const qtySP = root.querySelector('#add-sp-qty');
+  const btnAddSP = root.querySelector('#btn-add-sp');
+
   // Lógica de apertura con animación
   setTimeout(() => {
     root.classList.add('open');
@@ -145,7 +232,6 @@ export function openServiceModal({ mode = 'create', serviceData = null, onSave =
   // Cerrar modal
   const closeDrawer = () => {
     root.classList.remove('open');
-    // Esperar a que termine la animación
     setTimeout(() => {
       root.remove();
     }, 350);
@@ -167,6 +253,144 @@ export function openServiceModal({ mode = 'create', serviceData = null, onSave =
   };
   document.addEventListener('keydown', escapeHandler);
 
+  // --- LÓGICA DE PRODUCTOS ASOCIADOS ---
+  
+  // Toggle del colapsable
+  let isExpanded = false;
+  toggleSP.addEventListener('click', () => {
+    isExpanded = !isExpanded;
+    contentSP.style.display = isExpanded ? 'block' : 'none';
+    arrowSP.style.transform = isExpanded ? 'rotate(90deg)' : 'rotate(0deg)';
+  });
+
+  // Cambiar placeholder dinámico según unidad
+  selectSP.addEventListener('change', () => {
+    const selectedOpt = selectSP.options[selectSP.selectedIndex];
+    if (!selectedOpt || selectSP.value === '') {
+      qtySP.placeholder = 'Cantidad';
+      return;
+    }
+    const unitType = selectedOpt.getAttribute('data-unit-type');
+    const unitLabel = selectedOpt.getAttribute('data-unit-label');
+
+    if (unitType === 'unit') {
+      qtySP.placeholder = 'Cantidad';
+    } else {
+      qtySP.placeholder = `Cantidad en ${unitLabel}`;
+    }
+  });
+
+  // Renderizar tabla
+  const renderAssociatedProducts = () => {
+    const listContainer = root.querySelector('#service-products-list');
+    if (!listContainer) return;
+
+    if (associatedProductsList.length === 0) {
+      listContainer.innerHTML = `<p style="font-size: var(--text-xs); color: var(--text-muted); font-style: italic; margin: 0; padding-block: var(--space-2);">No hay productos asociados a este servicio todavía.</p>`;
+      return;
+    }
+
+    listContainer.innerHTML = `
+      <table style="width: 100%; border-collapse: collapse; font-size: var(--text-xs); margin-bottom: var(--space-2);">
+        <thead>
+          <tr style="border-bottom: 1px solid var(--border-soft); text-align: left; color: var(--text-muted);">
+            <th style="padding-bottom: var(--space-1); font-weight: 700;">Producto</th>
+            <th style="padding-bottom: var(--space-1); font-weight: 700;">Cantidad</th>
+            <th style="padding-bottom: var(--space-1); text-align: right; font-weight: 700;">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${associatedProductsList.map((ap, idx) => {
+            const formattedQty = ap.quantity_used % 1 === 0 
+              ? ap.quantity_used.toFixed(0) 
+              : ap.quantity_used.toFixed(1);
+            
+            const unitText = ap.unit_type === 'unit' ? 'und' : ap.unit_label || '';
+
+            return `
+              <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.02);">
+                <td style="padding-block: var(--space-2); font-weight: 600; color: var(--text-primary);">${ap.product_name}</td>
+                <td style="padding-block: var(--space-2); color: var(--text-secondary);">${formattedQty} ${unitText}</td>
+                <td style="padding-block: var(--space-2); text-align: right;">
+                  <button type="button" class="btn-remove-sp" data-index="${idx}" style="background: none; border: none; color: #ff5a7a; cursor: pointer; padding: var(--space-1);">
+                    <i data-lucide="trash-2" size="14"></i>
+                  </button>
+                </td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    `;
+
+    if (typeof lucide !== 'undefined') {
+      lucide.createIcons({ node: listContainer });
+    }
+
+    listContainer.querySelectorAll('.btn-remove-sp').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const index = parseInt(btn.getAttribute('data-index'), 10);
+        associatedProductsList.splice(index, 1);
+        renderAssociatedProducts();
+      });
+    });
+  };
+
+  // Agregar producto a la lista
+  btnAddSP.addEventListener('click', () => {
+    const productId = selectSP.value;
+    const qtyVal = parseFloat(qtySP.value);
+
+    selectSP.classList.remove('form-input-error');
+    qtySP.classList.remove('form-input-error');
+
+    if (!productId) {
+      selectSP.classList.add('form-input-error');
+      selectSP.focus();
+      return;
+    }
+
+    if (isNaN(qtyVal) || qtyVal <= 0) {
+      qtySP.classList.add('form-input-error');
+      qtySP.focus();
+      return;
+    }
+
+    // Verificar si ya está en la lista
+    const alreadyExists = associatedProductsList.some(ap => ap.product_id === productId);
+    if (alreadyExists) {
+      showToast({
+        title: 'Producto duplicado',
+        subtitle: 'El producto ya está en la lista de consumos.',
+        type: 'warning'
+      });
+      return;
+    }
+
+    const selectedOpt = selectSP.options[selectSP.selectedIndex];
+    const name = selectedOpt.getAttribute('data-name');
+    const unitType = selectedOpt.getAttribute('data-unit-type');
+    const unitLabel = selectedOpt.getAttribute('data-unit-label');
+
+    associatedProductsList.push({
+      product_id: productId,
+      quantity_used: qtyVal,
+      product_name: name,
+      unit_type: unitType,
+      unit_label: unitLabel
+    });
+
+    // Resetear formulario de inserción
+    selectSP.value = '';
+    qtySP.value = '';
+    qtySP.placeholder = 'Cantidad';
+
+    renderAssociatedProducts();
+  });
+
+  // Render inicial de la lista
+  renderAssociatedProducts();
+
   // Eliminar servicio
   if (deleteBtn && mode === 'edit' && serviceData) {
     deleteBtn.addEventListener('click', () => {
@@ -178,7 +402,6 @@ export function openServiceModal({ mode = 'create', serviceData = null, onSave =
         confirmVariant: 'danger',
         onConfirm: async () => {
           try {
-            const bizId = getActiveBusinessId();
             await deleteService(bizId, serviceData.id);
             showToast({
               title: 'Servicio eliminado',
@@ -242,24 +465,47 @@ export function openServiceModal({ mode = 'create', serviceData = null, onSave =
     saveBtn.disabled = true;
     saveBtn.textContent = 'Guardando...';
 
-    const bizId = getActiveBusinessId();
-
     try {
+      let savedService;
+
       if (mode === 'create') {
-        await addService(bizId, payload);
-        showToast({
-          title: 'Servicio creado',
-          subtitle: `El servicio "${payload.name}" ha sido creado con éxito.`,
-          type: 'success'
-        });
+        savedService = await addService(bizId, payload);
       } else {
-        await updateService(bizId, serviceData.id, payload);
-        showToast({
-          title: 'Servicio actualizado',
-          subtitle: `El servicio "${payload.name}" ha sido actualizado con éxito.`,
-          type: 'success'
-        });
+        savedService = await updateService(bizId, serviceData.id, payload);
       }
+
+      const serviceId = savedService.id;
+
+      // --- SINCRONIZAR PRODUCTOS DEL SERVICIO ---
+      
+      // 1. Borrar asociaciones anteriores
+      const { error: delError } = await supabase
+        .from('service_products')
+        .delete()
+        .eq('service_id', serviceId);
+
+      if (delError) throw delError;
+
+      // 2. Insertar las nuevas asociaciones (si hay en la lista)
+      if (associatedProductsList.length > 0) {
+        const insertPayload = associatedProductsList.map(ap => ({
+          service_id: serviceId,
+          product_id: ap.product_id,
+          quantity_used: ap.quantity_used
+        }));
+
+        const { error: insError } = await supabase
+          .from('service_products')
+          .insert(insertPayload);
+
+        if (insError) throw insError;
+      }
+
+      showToast({
+        title: mode === 'create' ? 'Servicio creado' : 'Servicio actualizado',
+        subtitle: `El servicio "${payload.name}" ha sido guardado con éxito.`,
+        type: 'success'
+      });
 
       if (onSave) onSave();
       closeDrawer();
