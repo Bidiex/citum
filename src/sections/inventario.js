@@ -6,6 +6,8 @@ import { openProductModal, openStockEntryModal } from '../components/modal-inven
 import { showToast } from '../utils/toast.js';
 import { showConfirm } from '../utils/confirm.js';
 import { generateClientTicket } from '../utils/pdf.js';
+import { paginate, totalPages, renderPaginationHTML, bindPagination } from '../utils/pagination.js';
+
 
 export async function init(container) {
   const activeBusiness = window.currentBusiness || getActiveBusiness();
@@ -40,6 +42,9 @@ export async function init(container) {
   let movements = [];
   let alerts = [];
   let movementsFilter = 'all';
+  let productsPage = 1;
+  let movementsPage = 1;
+
 
   // Canales en tiempo real
   const productsChannelName = `db-inventory-products-${businessId}`;
@@ -99,6 +104,9 @@ export async function init(container) {
       `;
     }
 
+    const pages = totalPages(products);
+    const pageItems = paginate(products, productsPage);
+
     return `
       <div class="crm-table-wrapper">
         <div class="crm-table-container">
@@ -114,7 +122,7 @@ export async function init(container) {
               </tr>
             </thead>
             <tbody>
-              ${products.map(p => {
+              ${pageItems.map(p => {
                 const lowStock = isLowStock(p);
                 const rowStyle = lowStock && p.is_active ? 'background-color: rgba(239, 68, 68, 0.06);' : '';
                 return `
@@ -138,18 +146,18 @@ export async function init(container) {
                     <td style="text-align: right;">
                       <div style="display: flex; gap: var(--space-3); justify-content: flex-end; align-items: center;">
                         <button class="btn-entry-stock" data-id="${p.id}" style="background:none; border:none; color:var(--accent-neon); font-weight:600; cursor:pointer; font-size:var(--text-xs); display:flex; align-items:center; gap:4px;">
-                          <i data-lucide="plus-circle" size="14"></i> Entrada
+                          <i data-lucide="plus-circle" style="width: 13px; height: 13px;"></i> Entrada
                         </button>
                         <button class="btn-edit-product" data-id="${p.id}" style="background:none; border:none; color:var(--accent-purple); font-weight:600; cursor:pointer; font-size:var(--text-xs); display:flex; align-items:center; gap:4px;">
-                          <i data-lucide="edit-3" size="14"></i> Editar
+                          <i data-lucide="edit-3" style="width: 13px; height: 13px;"></i> Editar
                         </button>
                         ${p.is_active ? `
                           <button class="btn-toggle-product" data-id="${p.id}" data-active="false" style="background:none; border:none; color:var(--text-muted); font-weight:600; cursor:pointer; font-size:var(--text-xs); display:flex; align-items:center; gap:4px;">
-                            <i data-lucide="eye-off" size="14"></i> Desactivar
+                            <i data-lucide="eye-off" style="width: 13px; height: 13px;"></i> Desactivar
                           </button>
                         ` : `
                           <button class="btn-toggle-product" data-id="${p.id}" data-active="true" style="background:none; border:none; color:var(--accent-neon); font-weight:600; cursor:pointer; font-size:var(--text-xs); display:flex; align-items:center; gap:4px;">
-                            <i data-lucide="eye" size="14"></i> Activar
+                            <i data-lucide="eye" style="width: 13px; height: 13px;"></i> Activar
                           </button>
                         `}
                       </div>
@@ -160,6 +168,7 @@ export async function init(container) {
             </tbody>
           </table>
         </div>
+        ${renderPaginationHTML(productsPage, pages, products.length)}
       </div>
     `;
   };
@@ -196,6 +205,9 @@ export async function init(container) {
       }
     };
 
+    const pages = totalPages(filteredMovements);
+    const pageItems = paginate(filteredMovements, movementsPage);
+
     return `
       <div class="crm-table-wrapper">
         <div class="crm-table-header-row">
@@ -224,7 +236,7 @@ export async function init(container) {
               </tr>
             </thead>
             <tbody>
-              ${filteredMovements.map(m => {
+              ${pageItems.map(m => {
                 const prod = m.inventory_products;
                 const formattedDate = new Date(m.created_at).toLocaleDateString('es-CO', {
                   day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
@@ -256,6 +268,7 @@ export async function init(container) {
             </tbody>
           </table>
         </div>
+        ${renderPaginationHTML(movementsPage, pages, filteredMovements.length)}
       </div>
     `;
   };
@@ -326,13 +339,13 @@ export async function init(container) {
         <!-- Subnavegación de Pestañas (Tabs) -->
         <div class="tabs-navigation" style="display:flex; gap: var(--space-4); border-bottom: 1px solid var(--border-soft); padding-bottom: var(--space-2); margin-top: var(--space-2);">
           <button class="tab-btn ${activeTab === 'productos' ? 'active' : ''}" data-tab="productos" style="background:none; border:none; color:${activeTab === 'productos' ? 'var(--text-primary)' : 'var(--text-secondary)'}; font-weight:${activeTab === 'productos' ? '700' : '600'}; padding-bottom:var(--space-2); border-bottom: 2px solid ${activeTab === 'productos' ? 'var(--accent-neon)' : 'transparent'}; cursor:pointer; font-size:var(--text-sm); display:flex; align-items:center; gap:6px;">
-            <i data-lucide="package" size="16"></i> Productos
+            <i data-lucide="package" style="width: 15px; height: 15px;"></i> Productos
           </button>
           <button class="tab-btn ${activeTab === 'movimientos' ? 'active' : ''}" data-tab="movimientos" style="background:none; border:none; color:${activeTab === 'movimientos' ? 'var(--text-primary)' : 'var(--text-secondary)'}; font-weight:${activeTab === 'movimientos' ? '700' : '600'}; padding-bottom:var(--space-2); border-bottom: 2px solid ${activeTab === 'movimientos' ? 'var(--accent-neon)' : 'transparent'}; cursor:pointer; font-size:var(--text-sm); display:flex; align-items:center; gap:6px;">
-            <i data-lucide="history" size="16"></i> Movimientos
+            <i data-lucide="history" style="width: 15px; height: 15px;"></i> Movimientos
           </button>
           <button class="tab-btn ${activeTab === 'alertas' ? 'active' : ''}" data-tab="alertas" style="background:none; border:none; color:${activeTab === 'alertas' ? 'var(--text-primary)' : 'var(--text-secondary)'}; font-weight:${activeTab === 'alertas' ? '700' : '600'}; padding-bottom:var(--space-2); border-bottom: 2px solid ${activeTab === 'alertas' ? 'var(--accent-neon)' : 'transparent'}; cursor:pointer; font-size:var(--text-sm); display:flex; align-items:center; gap:6px;">
-            <i data-lucide="bell" size="16"></i> Alertas
+            <i data-lucide="bell" style="width: 15px; height: 15px;"></i> Alertas
             ${alertsCount > 0 ? `<span class="alerts-count-badge" style="background: #ff5a7a; color:white; font-size:10px; font-weight:800; padding:2px 6px; border-radius:var(--radius-pill);">${alertsCount}</span>` : ''}
           </button>
         </div>
@@ -383,12 +396,27 @@ export async function init(container) {
       });
     });
 
+    // Enlazar paginación de productos o movimientos
+    if (activeTab === 'productos') {
+      bindPagination(container, (p) => {
+        productsPage = p;
+        render();
+      });
+    } else if (activeTab === 'movimientos') {
+      bindPagination(container, (p) => {
+        movementsPage = p;
+        render();
+      });
+    }
+
+
     // --- ACCIONES TAB 1 - PRODUCTOS ---
     if (activeTab === 'productos') {
       const addProdBtn = container.querySelector('#btn-add-product');
       if (addProdBtn) {
         addProdBtn.addEventListener('click', () => {
           openProductModal({ mode: 'create', onSave: async () => {
+            productsPage = 1;
             await loadData();
             render();
           }});
@@ -464,6 +492,7 @@ export async function init(container) {
       if (filterSelect) {
         filterSelect.addEventListener('change', (e) => {
           movementsFilter = e.target.value;
+          movementsPage = 1;
           render();
         });
       }

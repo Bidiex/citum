@@ -181,21 +181,22 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Lógica de ruteo
+  let navToken = 0;
+
   const navigate = async (section) => {
     const container = document.getElementById('main-content');
     if (!container) return;
 
-    // Limpiar suscripciones previas o temporizadores adjuntos a la vista anterior
+    // Limpiar suscripciones previas
     if (typeof container.cleanup === 'function') {
-      try {
-        container.cleanup();
-      } catch (err) {
-        console.error('[navigate cleanup] Error:', err);
-      }
+      try { container.cleanup(); } catch (err) { console.error('[navigate cleanup]', err); }
       container.cleanup = null;
     }
 
-    // Mostrar estado de carga
+    // Incrementar token — cualquier navegación anterior queda invalidada
+    const currentToken = ++navToken;
+
+    // Mostrar loading
     container.innerHTML = `
       <div class="dashboard-welcome">
         <div class="welcome-box">
@@ -204,38 +205,42 @@ document.addEventListener('DOMContentLoaded', async () => {
         </div>
       </div>
     `;
-    if (typeof lucide !== 'undefined') {
-      lucide.createIcons();
-    }
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 
     try {
-      // Intentar importar dinámicamente el módulo correspondiente a la sección
-      const modulePath = `./sections/${section}.js`;
-      const mod = await import(modulePath);
-      
-      // Limpiar contenedor e inicializar vista
+      const mod = await import(`./sections/${section}.js`);
+
+      // Si el token cambió, el usuario ya navegó a otra sección — descartar
+      if (currentToken !== navToken) return;
+
       container.innerHTML = '';
-      mod.init(container);
-      
-      // Actualizar título de sección en Header
+      await mod.init(container);
+
+      // Verificar de nuevo después del init async
+      if (currentToken !== navToken) {
+        if (typeof container.cleanup === 'function') {
+          try { container.cleanup(); } catch (e) {}
+          container.cleanup = null;
+        }
+        return;
+      }
+
       if (sectionTitle) {
-        // Capitalizar primera letra
         sectionTitle.textContent = section.charAt(0).toUpperCase() + section.slice(1);
       }
     } catch (error) {
-      console.error(`Error cargando el módulo ${section}:`, error);
+      console.error(`Error cargando módulo ${section}:`, error);
+      if (currentToken !== navToken) return;
       container.innerHTML = `
         <div class="dashboard-welcome">
           <div class="welcome-box" style="border-color: rgba(255, 90, 122, 0.2);">
             <i data-lucide="alert-circle" style="width: 48px; height: 48px; color: #ff5a7a;"></i>
             <h2 style="color: #ff5a7a;">Error al cargar la sección</h2>
-            <p>No se pudo inicializar la sección "${section}". Es posible que el archivo aún no exista o esté en desarrollo.</p>
+            <p>No se pudo inicializar "${section}".</p>
           </div>
         </div>
       `;
-      if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
-      }
+      if (typeof lucide !== 'undefined') lucide.createIcons();
     }
   };
 

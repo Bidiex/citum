@@ -61,13 +61,17 @@ export function showConfirm({
     const dialog = overlay.querySelector('.confirm-dialog');
 
     // Función de cierre con transición
+    let hasResolved = false;
     const closeDialog = (result) => {
       overlay.classList.remove('show');
       
       // Limpiar listeners
       document.removeEventListener('keydown', handleKeyDown);
       
-      overlay.addEventListener('transitionend', () => {
+      const triggerCallback = () => {
+        if (hasResolved) return;
+        hasResolved = true;
+
         overlay.remove();
         resolve(result);
         if (result && typeof onConfirm === 'function') {
@@ -75,20 +79,12 @@ export function showConfirm({
         } else if (!result && typeof onCancel === 'function') {
           onCancel();
         }
-      });
+      };
+
+      overlay.addEventListener('transitionend', triggerCallback);
       
       // Fallback
-      setTimeout(() => {
-        if (overlay.parentNode) {
-          overlay.remove();
-          resolve(result);
-          if (result && typeof onConfirm === 'function') {
-            onConfirm();
-          } else if (!result && typeof onCancel === 'function') {
-            onCancel();
-          }
-        }
-      }, 300);
+      setTimeout(triggerCallback, 300);
     };
 
     // Listeners para botones

@@ -3,6 +3,8 @@ import { getInvoices, getActiveBusinessId, getActiveBusiness } from '../utils/bu
 import { openPosModal } from '../components/pos-modal.js';
 import { generateClientTicket } from '../utils/pdf.js';
 import { supabase } from '../core/supabase.js';
+import { paginate, totalPages, renderPaginationHTML, bindPagination } from '../utils/pagination.js';
+
 
 export async function init(container) {
   const businessId = getActiveBusinessId();
@@ -34,6 +36,8 @@ export async function init(container) {
   
   let invoices = await getInvoices(businessId);
   let searchQuery = '';
+  let currentPage = 1;
+
 
   const renderTableContent = () => {
     const tableContent = container.querySelector('#crm-table-content');
@@ -62,6 +66,9 @@ export async function init(container) {
         </div>
       `;
     } else {
+      const pages = totalPages(filteredInvoices);
+      const pageItems = paginate(filteredInvoices, currentPage);
+
       tableContent.innerHTML = `
         <table class="crm-table">
           <thead>
@@ -75,7 +82,7 @@ export async function init(container) {
             </tr>
           </thead>
           <tbody>
-            ${filteredInvoices.map(inv => `
+            ${pageItems.map(inv => `
               <tr>
                 <td style="font-weight: 700; color: var(--accent-neon);">${inv.invoice_number}</td>
                 <td>${inv.client_name}</td>
@@ -90,7 +97,7 @@ export async function init(container) {
                     font-weight: 600; 
                     cursor: pointer;
                   ">
-                    <i data-lucide="printer" size="16" style="display: inline; vertical-align: middle; margin-right: 4px;"></i>
+                    <i data-lucide="printer" style="width: 13px; height: 13px; display: inline; vertical-align: middle; margin-right: 4px;"></i>
                     Imprimir
                   </button>
                 </td>
@@ -98,12 +105,19 @@ export async function init(container) {
             `).join('')}
           </tbody>
         </table>
+        ${renderPaginationHTML(currentPage, pages, filteredInvoices.length)}
       `;
     }
+
 
     if (typeof lucide !== 'undefined') {
       lucide.createIcons({ node: tableContent });
     }
+
+    bindPagination(tableContent, (p) => {
+      currentPage = p;
+      renderTableContent();
+    });
 
     tableContent.querySelectorAll('.btn-print-invoice').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -152,6 +166,7 @@ export async function init(container) {
     if (searchInput) {
       searchInput.addEventListener('input', (e) => {
         searchQuery = e.target.value.toLowerCase().trim();
+        currentPage = 1;
         renderTableContent();
       });
     }
@@ -162,6 +177,7 @@ export async function init(container) {
         openPosModal({
           onSave: async () => {
             invoices = await getInvoices(businessId);
+            currentPage = 1;
             renderTableContent();
           }
         });
@@ -184,6 +200,7 @@ export async function init(container) {
         appointmentContext: aptContext,
         onSave: async () => {
           invoices = await getInvoices(businessId);
+          currentPage = 1;
           renderTableContent();
         }
       });

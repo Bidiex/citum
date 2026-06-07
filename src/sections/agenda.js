@@ -59,7 +59,7 @@ export async function init(container) {
 
       <!-- 📊 Métricas de la Agenda -->
       <div class="agenda-metrics">
-        <div style="display:flex; align-items:center; justify-content:center; padding: var(--space-4); width: 100%;">
+        <div style="grid-column: 1 / -1; display:flex; align-items:center; justify-content:center; padding: var(--space-4); width: 100%;">
           <i data-lucide="loader" class="anim-spin" style="color:var(--accent-neon);"></i>
         </div>
       </div>
@@ -368,29 +368,32 @@ export async function init(container) {
   // Cargar métricas y próxima cita inicialmente
   await refreshMetricsAndNextApt();
 
-  if (typeof lucide !== 'undefined') {
-    lucide.createIcons({ node: container.querySelector('.view-container') });
+  const viewContainer = container.querySelector('.view-container');
+  if (viewContainer && typeof lucide !== 'undefined') {
+    lucide.createIcons({ node: viewContainer });
   }
 
   // Asociar evento para abrir el modal de nueva cita
   const btnNewApt = container.querySelector('#btn-new-apt');
-  btnNewApt.addEventListener('click', async () => {
-    await openAppointmentModal({
-      appointments: appointments,
-      mode: 'create',
-      onSave: async (newApt, selectedServices) => {
-        try {
-          await addAppointment(businessId, newApt, selectedServices);
-          appointments = await getAppointments(businessId);
-          calendarInstance.updateAppointments(appointments);
-          await refreshMetricsAndNextApt();
-        } catch (err) {
-          console.error('[onSave new appointment] Error:', err);
-          throw err;
+  if (btnNewApt) {
+    btnNewApt.addEventListener('click', async () => {
+      await openAppointmentModal({
+        appointments: appointments,
+        mode: 'create',
+        onSave: async (newApt, selectedServices) => {
+          try {
+            await addAppointment(businessId, newApt, selectedServices);
+            appointments = await getAppointments(businessId);
+            calendarInstance.updateAppointments(appointments);
+            await refreshMetricsAndNextApt();
+          } catch (err) {
+            console.error('[onSave new appointment] Error:', err);
+            throw err;
+          }
         }
-      }
+      });
     });
-  });
+  }
 
   // SUSCRIPCIÓN EN TIEMPO REAL (Realtime)
   const channelName = `appointments-changes-${businessId}`;

@@ -847,3 +847,233 @@ body {
   }
 }
 
+/* Paginación de tablas */
+.pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--border-soft);
+  margin-top: auto;
+}
+
+.pagination-info {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.pagination-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-soft);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.pagination-btn:hover:not([disabled]) {
+  background: var(--color-primary-light, var(--biz-accent-light));
+  border-color: var(--color-primary, var(--accent-purple));
+}
+
+.pagination-btn[disabled] {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.pagination-current {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--text-primary);
+  min-width: 48px;
+  text-align: center;
+}
+
+/* WhatsApp Bubble Preview Component */
+.whatsapp-preview-container {
+  background: #0b141a; /* WhatsApp dark mode chat background */
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  position: relative;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.5);
+  box-sizing: border-box;
+}
+
+.whatsapp-preview-bubble {
+  background: #005c4b; /* WhatsApp dark mode green bubble */
+  color: #e9edef;
+  border-radius: 8px 8px 0px 8px;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  max-width: 85%;
+  align-self: flex-end;
+  position: relative;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  word-break: break-word;
+  box-sizing: border-box;
+  text-align: left;
+}
+
+.whatsapp-preview-bubble strong {
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.whatsapp-preview-bubble em {
+  font-style: italic;
+}
+
+.whatsapp-preview-bubble del {
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+
+.whatsapp-preview-bubble code {
+  font-family: var(--font-mono, monospace);
+  background: rgba(0, 0, 0, 0.2);
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-size: var(--text-xs);
+}
+
+.whatsapp-preview-time {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.5);
+  text-align: right;
+  margin-top: 4px;
+  display: block;
+}
+
+/* Custom Rich Text Editor Styles */
+.editor-container {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.01);
+  overflow: hidden;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.editor-container:focus-within {
+  border-color: var(--accent-purple);
+  box-shadow: 0 0 0 2px rgba(139, 92, 255, 0.15);
+}
+
+.editor-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--border-soft);
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.editor-format-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.editor-variables-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.editor-toolbar-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.editor-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.editor-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+  border-color: var(--border-soft);
+}
+
+.editor-btn.active {
+  background: rgba(139, 92, 255, 0.1);
+  color: var(--accent-purple);
+  border-color: rgba(139, 92, 255, 0.2);
+}
+
+.editor-var-btn {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s;
+}
+
+.editor-var-btn:hover {
+  background: rgba(139, 92, 255, 0.08);
+  border-color: var(--accent-purple);
+  color: var(--text-primary);
+}
+
+.editor-textarea {
+  width: 100%;
+  border: none !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+  resize: vertical;
+  min-height: 150px;
+  padding: 14px 16px;
+  font-family: inherit;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--text-primary);
+  outline: none;
+  box-sizing: border-box;
+}
+
+
+
+
+

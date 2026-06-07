@@ -66,7 +66,7 @@ function showCancellationReasonModal() {
     overlay.style.transition = 'opacity 200ms ease';
     
     overlay.innerHTML = `
-      <div class="apt-modal" style="max-width: 380px; padding: var(--space-5); transform: scale(0.95); opacity: 0; transition: all 200ms ease;">
+      <div class="apt-modal" style="max-width: 380px; padding: var(--space-6); transform: scale(0.95); opacity: 0; transition: all 200ms ease;">
         <h3 style="margin-bottom: var(--space-3); font-size: var(--text-base); font-weight: 800;">Motivo de Cancelación</h3>
         <p style="font-size: var(--text-xs); color: var(--text-secondary); margin-bottom: var(--space-4);">
           Por favor, indica la razón por la cual se cancela esta cita (opcional):
