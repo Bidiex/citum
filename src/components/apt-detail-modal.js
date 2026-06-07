@@ -399,97 +399,88 @@ export async function openAptDetailModal({ apt, onEdit = null, onDelete = null, 
         ${pipelineHtml}
         ${cancellationBannerHtml}
 
-        <!-- 👤 Información del cliente (sin avatar) -->
+        <!-- 👤 Cliente — nombre + contacto en una sola fila -->
         <div class="apt-modal-section">
-          <div class="apt-detail-client-section" style="display: flex; flex-direction: column; gap: var(--space-2);">
-            <div style="display: flex; align-items: center; gap: var(--space-2.5); color: var(--accent-neon);">
-              <i data-lucide="user" size="18" style="stroke-width: 2.5; flex-shrink: 0;"></i>
-              <span class="apt-detail-client-name" style="font-size: var(--text-xl); font-weight: 900; color: var(--text-primary); line-height: 1.2;">${apt.client}</span>
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap;">
+            <!-- Nombre -->
+            <div style="display: flex; align-items: center; gap: var(--space-2); min-width: 0;">
+              <i data-lucide="user" size="14" style="stroke-width: 2.5; color: var(--accent-neon); flex-shrink: 0;"></i>
+              <span style="font-size: var(--text-base); font-weight: 900; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${apt.client}</span>
             </div>
-            <div class="apt-detail-client-meta" style="font-size: var(--text-sm); color: var(--text-muted); padding-left: 28px; display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap;">
+            <!-- Contacto -->
+            <div style="display: flex; align-items: center; gap: var(--space-3); flex-shrink: 0;">
               ${apt.phone ? `
-                <a href="tel:${apt.phone}" style="display: inline-flex; align-items: center; gap: 6px; color: var(--text-secondary); text-decoration: none; font-weight: 600;">
-                  <i data-lucide="phone" size="14"></i> ${apt.phone}
+                <a href="tel:${apt.phone}" style="display: inline-flex; align-items: center; gap: 5px; color: var(--text-secondary); text-decoration: none; font-size: var(--text-xs); font-weight: 600; transition: color 0.15s;" onmouseover="this.style.color='var(--accent-neon)'" onmouseout="this.style.color='var(--text-secondary)'">
+                  <i data-lucide="phone" size="12"></i> ${apt.phone}
                 </a>
               ` : ''}
-              ${apt.phone && apt.email ? '·' : ''}
+              ${apt.phone && apt.email ? `<span style="color: var(--border-soft); font-size: 12px;">|</span>` : ''}
               ${apt.email ? `
-                <a href="mailto:${apt.email}" style="display: inline-flex; align-items: center; gap: 6px; color: var(--text-secondary); text-decoration: none; font-weight: 600;">
-                  <i data-lucide="mail" size="14"></i> ${apt.email}
+                <a href="mailto:${apt.email}" style="display: inline-flex; align-items: center; gap: 5px; color: var(--text-secondary); text-decoration: none; font-size: var(--text-xs); font-weight: 600; transition: color 0.15s;" onmouseover="this.style.color='var(--accent-neon)'" onmouseout="this.style.color='var(--text-secondary)'">
+                  <i data-lucide="mail" size="12"></i> ${apt.email}
                 </a>
               ` : ''}
             </div>
           </div>
         </div>
  
-        <!-- 📋 Detalles de asignación y fecha -->
+        <!-- 📋 Información de la Cita -->
         <div class="apt-modal-section">
-          <div class="apt-modal-section-title">
-            <i data-lucide="info" size="14"></i>
+          <div class="apt-modal-section-title" style="margin-bottom: var(--space-3);">
+            <i data-lucide="info" size="12"></i>
             Información de la Cita
           </div>
           
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4);">
-            <div style="display: flex; gap: var(--space-2); align-items: flex-start;">
-              <div style="color: var(--accent-neon); margin-top: 2px;"><i data-lucide="user" size="14"></i></div>
-              <div style="display: flex; flex-direction: column;">
-                <span style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.05em;">Profesional</span>
-                <span style="font-size: var(--text-sm); font-weight: 700; color: var(--text-primary); margin-top: 2px;">${apt.prof}</span>
+          <div style="display: flex; flex-direction: column; gap: 0;">
+            <!-- Fila: Profesional + Estado -->
+            <div style="display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) 0; border-bottom: 1px solid var(--border-soft);">
+              <div style="display: flex; align-items: center; gap: var(--space-2); flex: 1; min-width: 0;">
+                <i data-lucide="user" size="12" style="color: var(--text-muted); flex-shrink: 0;"></i>
+                <span style="font-size: 10px; text-transform: uppercase; font-weight: 800; color: var(--text-muted); letter-spacing: 0.06em; flex-shrink: 0;">Profesional</span>
+                <span style="font-size: var(--text-xs); font-weight: 700; color: var(--text-primary); margin-left: auto; text-align: right;">${apt.prof}</span>
+              </div>
+              <div style="width: 1px; height: 16px; background: var(--border-soft); flex-shrink: 0;"></div>
+              <div style="display: flex; align-items: center; gap: var(--space-2);">
+                <i data-lucide="tag" size="12" style="color: var(--text-muted); flex-shrink: 0;"></i>
+                <span style="
+                  display: inline-flex;
+                  align-items: center;
+                  gap: 4px;
+                  padding: 2px 8px;
+                  border-radius: var(--radius-pill);
+                  font-size: 10px;
+                  font-weight: 700;
+                  text-transform: capitalize;
+                  border: 1px solid var(--border-soft);
+                  background: ${statusStyle.bg};
+                  color: ${statusStyle.color};
+                ">
+                  <span style="width: 5px; height: 5px; border-radius: 50%; display: inline-block; background: ${statusStyle.dot};"></span>
+                  ${apt.status || 'confirmada'}
+                </span>
               </div>
             </div>
- 
-            <div style="display: flex; gap: var(--space-2); align-items: flex-start;">
-              <div style="color: var(--accent-neon); margin-top: 2px;"><i data-lucide="tag" size="14"></i></div>
-              <div style="display: flex; flex-direction: column;">
-                <span style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.05em;">Estado</span>
-                <div style="margin-top: 2px;">
-                  <span class="apt-detail-badge ${apt.status || 'confirmada'}" style="
-                    display: inline-flex;
-                    align-items: center;
-                    padding: 2px 10px;
-                    border-radius: var(--radius-pill);
-                    font-size: 11px;
-                    font-weight: 700;
-                    text-transform: capitalize;
-                    border: 1px solid var(--border-soft);
-                    background: ${statusStyle.bg};
-                    color: ${statusStyle.color};
-                  ">
-                    <span style="
-                      width: 6px;
-                      height: 6px;
-                      border-radius: 50%;
-                      display: inline-block;
-                      margin-right: var(--space-1);
-                      background: ${statusStyle.dot};
-                    "></span>
-                    ${apt.status || 'confirmada'}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
- 
-          <div style="display: flex; gap: var(--space-2); align-items: flex-start; margin-top: var(--space-2);">
-            <div style="color: var(--accent-neon); margin-top: 2px;"><i data-lucide="clock" size="14"></i></div>
-            <div style="display: flex; flex-direction: column;">
-              <span style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.05em;">Fecha y Hora</span>
-              <span style="font-size: var(--text-sm); font-weight: 700; color: var(--text-primary); margin-top: 2px;">${formatDateSpanish(apt.date)} a las ${apt.time}</span>
+
+            <!-- Fila: Fecha y Hora -->
+            <div style="display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) 0;">
+              <i data-lucide="clock" size="12" style="color: var(--text-muted); flex-shrink: 0;"></i>
+              <span style="font-size: 10px; text-transform: uppercase; font-weight: 800; color: var(--text-muted); letter-spacing: 0.06em; flex-shrink: 0;">Fecha y Hora</span>
+              <span style="font-size: var(--text-xs); font-weight: 700; color: var(--text-primary); margin-left: auto;">${formatDateSpanish(apt.date)} — ${apt.time}</span>
             </div>
           </div>
         </div>
  
         <!-- ✂️ Desglose de servicios -->
         <div class="apt-modal-section">
-          <div class="apt-modal-section-title">
-            <i data-lucide="briefcase" size="14"></i>
+          <div class="apt-modal-section-title" style="margin-bottom: var(--space-3);">
+            <i data-lucide="briefcase" size="12"></i>
             Servicios Contratados
           </div>
-          <div class="apt-detail-services-box" style="
+          <div style="
             background: var(--bg-primary); 
             border: 1px solid var(--border-soft); 
             border-radius: var(--radius-sm); 
-            padding: var(--space-4);
+            padding: var(--space-3);
             display: flex;
             flex-direction: column;
             gap: var(--space-2);
@@ -497,28 +488,28 @@ export async function openAptDetailModal({ apt, onEdit = null, onDelete = null, 
             ${servicesList.map(srv => {
               const price = SERVICE_PRICES[srv] || 0;
               return `
-                <div class="apt-detail-service-row" style="display: flex; justify-content: space-between; font-size: var(--text-sm); font-weight: 700; color: var(--text-primary); align-items: center;">
-                  <span style="display: inline-flex; align-items: center; gap: 6px;">
-                    <i data-lucide="chevron-right" style="width: 14px; height: 14px; stroke-width: 2.5; color: var(--accent-neon);"></i>
+                <div style="display: flex; justify-content: space-between; font-size: var(--text-xs); font-weight: 700; color: var(--text-primary); align-items: center;">
+                  <span style="display: inline-flex; align-items: center; gap: 5px;">
+                    <i data-lucide="chevron-right" style="width: 12px; height: 12px; stroke-width: 2.5; color: var(--accent-neon);"></i>
                     ${srv}
                   </span>
-                  <span class="apt-detail-service-price" style="color: var(--accent-neon); font-weight: 800;">${price > 0 ? `$${price.toLocaleString('es-CO')}` : 'Consultar'}</span>
+                  <span style="color: var(--accent-neon); font-weight: 800;">${price > 0 ? `$${price.toLocaleString('es-CO')}` : 'Consultar'}</span>
                 </div>
               `;
             }).join('')}
             
-            <div class="apt-detail-total-row" style="
+            <div style="
               display: flex; 
               justify-content: space-between; 
-              margin-top: var(--space-2); 
-              padding-top: var(--space-3); 
+              margin-top: var(--space-1); 
+              padding-top: var(--space-2); 
               border-top: 1px solid var(--border-soft); 
-              font-size: var(--text-sm); 
+              font-size: var(--text-xs); 
               font-weight: 800; 
               color: var(--text-primary);
             ">
               <span>Total Estimado</span>
-              <span style="color: var(--accent-neon); font-weight: 900; font-size: var(--text-base);">$${total.toLocaleString('es-CO')}</span>
+              <span style="color: var(--accent-neon); font-weight: 900; font-size: var(--text-sm);">$${total.toLocaleString('es-CO')}</span>
             </div>
           </div>
         </div>
@@ -526,17 +517,17 @@ export async function openAptDetailModal({ apt, onEdit = null, onDelete = null, 
         <!-- 📝 Notas internas -->
         ${apt.notes ? `
           <div class="apt-modal-section">
-            <div class="apt-modal-section-title">
-              <i data-lucide="file-text" size="14"></i>
+            <div class="apt-modal-section-title" style="margin-bottom: var(--space-3);">
+              <i data-lucide="file-text" size="12"></i>
               Notas del Personal
             </div>
-            <div class="apt-detail-notes-box" style="
+            <div style="
               background: var(--bg-primary);
               border-left: 3px solid var(--accent-neon);
-              padding: var(--space-3) var(--space-4);
+              padding: var(--space-2) var(--space-3);
               font-size: var(--text-xs);
               color: var(--text-secondary);
-              line-height: 1.4;
+              line-height: 1.5;
               font-style: italic;
               border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
             ">${apt.notes}</div>
