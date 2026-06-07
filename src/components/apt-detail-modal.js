@@ -1,6 +1,7 @@
 import { showConfirm } from '../utils/confirm.js';
 import { showToast } from '../utils/toast.js';
 import { getServices, getActiveBusinessId } from '../utils/businessState.js';
+import { supabase } from '../core/supabase.js';
 
 // Helper para formatear fecha en español
 function formatDateSpanish(dateStr) {
@@ -14,7 +15,115 @@ function formatDateSpanish(dateStr) {
   return formatted.charAt(0).toUpperCase() + formatted.slice(1);
 }
 
-export async function openAptDetailModal({ apt, onEdit = null, onDelete = null }) {
+// Helper para estilos del badge según estado
+function getStatusBadgeStyle(status) {
+  switch (status) {
+    case 'pendiente':
+      return {
+        bg: 'var(--bg-secondary)',
+        color: 'var(--text-secondary)',
+        dot: 'var(--text-muted)'
+      };
+    case 'confirmada':
+      return {
+        bg: 'rgba(139, 92, 255, 0.08)',
+        color: 'var(--accent-neon)',
+        dot: 'var(--accent-neon)'
+      };
+    case 'completada':
+      return {
+        bg: 'rgba(16, 185, 129, 0.08)',
+        color: 'var(--color-success)',
+        dot: 'var(--color-success)'
+      };
+    case 'facturada':
+      return {
+        bg: 'rgba(139, 92, 255, 0.12)',
+        color: 'var(--accent-neon)',
+        dot: 'var(--accent-neon)'
+      };
+    case 'cancelada':
+    case 'no_asistio':
+    default:
+      return {
+        bg: 'rgba(239, 68, 68, 0.08)',
+        color: 'var(--color-danger)',
+        dot: 'var(--color-danger)'
+      };
+  }
+}
+
+// Modal personalizado para solicitar motivo de cancelación (UI premium)
+function showCancellationReasonModal() {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.className = 'apt-modal-overlay';
+    overlay.style.zIndex = '1100';
+    overlay.style.display = 'flex';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+    overlay.style.opacity = '0';
+    overlay.style.transition = 'opacity 200ms ease';
+    
+    overlay.innerHTML = `
+      <div class="apt-modal" style="max-width: 380px; padding: var(--space-5); transform: scale(0.95); opacity: 0; transition: all 200ms ease;">
+        <h3 style="margin-bottom: var(--space-3); font-size: var(--text-base); font-weight: 800;">Motivo de Cancelación</h3>
+        <p style="font-size: var(--text-xs); color: var(--text-secondary); margin-bottom: var(--space-4);">
+          Por favor, indica la razón por la cual se cancela esta cita (opcional):
+        </p>
+        <textarea id="cancellation-reason-input" placeholder="Ej. El cliente llamó para cancelar, cambio de planes..." style="
+          width: 100%;
+          height: 80px;
+          background: var(--bg-primary);
+          border: 1px solid var(--border-soft);
+          border-radius: var(--radius-sm);
+          padding: var(--space-2) var(--space-3);
+          color: var(--text-primary);
+          font-size: var(--text-xs);
+          resize: none;
+          margin-bottom: var(--space-4);
+          outline: none;
+        "></textarea>
+        <div style="display: flex; justify-content: flex-end; gap: var(--space-2);">
+          <button class="btn btn-secondary" id="cancel-reason-btn" style="height: 36px; font-size: var(--text-xs);">Cancelar</button>
+          <button class="btn btn-primary" id="confirm-reason-btn" style="height: 36px; font-size: var(--text-xs); background: var(--color-danger); border-color: var(--color-danger);">Confirmar Cancelación</button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(overlay);
+    const modal = overlay.querySelector('.apt-modal');
+    
+    setTimeout(() => {
+      overlay.style.opacity = '1';
+      modal.style.transform = 'scale(1)';
+      modal.style.opacity = '1';
+      overlay.querySelector('#cancellation-reason-input').focus();
+    }, 10);
+    
+    const close = (result) => {
+      modal.style.transform = 'scale(0.95)';
+      modal.style.opacity = '0';
+      overlay.style.opacity = '0';
+      setTimeout(() => {
+        overlay.remove();
+        resolve(result);
+      }, 200);
+    };
+    
+    overlay.querySelector('#cancel-reason-btn').addEventListener('click', () => close({ confirmed: false }));
+    overlay.querySelector('#confirm-reason-btn').addEventListener('click', () => {
+      const reason = overlay.querySelector('#cancellation-reason-input').value.trim();
+      close({ confirmed: true, reason });
+    });
+    
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) close({ confirmed: false });
+    });
+  });
+}
+
+export async function openAptDetailModal({ apt, onEdit = null, onDelete = null, onUpdate = null }) {
   if (!apt) return;
 
   const bizId = getActiveBusinessId();
@@ -43,6 +152,236 @@ export async function openAptDetailModal({ apt, onEdit = null, onDelete = null }
     total = servicesList.reduce((sum, s) => sum + (SERVICE_PRICES[s] || 0), 0);
   }
 
+  // Estilos del Badge de Estado
+  const statusStyle = getStatusBadgeStyle(apt.status);
+
+  // 1. Configuración del Pipeline de Estados
+  const pipelineStates = [
+    { key: 'pendiente', label: 'Pendiente' },
+    { key: 'confirmada', label: 'Confirmada' },
+    { key: 'completada', label: 'Completada' },
+    { key: 'facturada', label: 'Facturada' }
+  ];
+  const statusKeys = pipelineStates.map(s => s.key);
+  let activeIndex = statusKeys.indexOf(apt.status);
+  if (activeIndex === -1) {
+    // Si está cancelada o no asistió, congelamos la barra en el estado previo
+    activeIndex = apt.completed_at ? 2 : 1; 
+  }
+  const progressPct = (activeIndex / (pipelineStates.length - 1)) * 100;
+
+  const pipelineHtml = `
+    <div class="state-pipeline-container" style="margin-bottom: var(--space-6);">
+      <div class="state-pipeline" style="display: flex; align-items: center; justify-content: space-between; position: relative; padding-inline: var(--space-2); margin-bottom: 8px;">
+        <!-- Línea de fondo -->
+        <div style="position: absolute; top: 12px; left: 8px; right: 8px; height: 3px; background: var(--border-soft); z-index: 1; border-radius: var(--radius-pill);"></div>
+        <!-- Línea completada -->
+        <div style="position: absolute; top: 12px; left: 8px; width: calc(${progressPct}% - 16px); height: 3px; background: var(--color-success); z-index: 1; transition: width 0.3s ease; border-radius: var(--radius-pill);"></div>
+        
+        ${pipelineStates.map((state, index) => {
+          let circleStyle = '';
+          let textStyle = 'font-size: 11px; font-weight: 700; margin-top: 6px; transition: color 0.3s ease;';
+          let iconHtml = '';
+
+          if (index < activeIndex) {
+            // Estado anterior
+            circleStyle = 'background: var(--color-success); border-color: var(--color-success); color: white;';
+            textStyle += 'color: var(--color-success);';
+            iconHtml = '<i data-lucide="check" size="12" style="stroke-width: 3;"></i>';
+          } else if (index === activeIndex) {
+            // Estado actual
+            circleStyle = 'background: var(--color-primary); border-color: var(--color-primary); color: white; box-shadow: 0 0 10px rgba(139, 92, 255, 0.4);';
+            textStyle += 'color: var(--color-primary); font-weight: 800;';
+            iconHtml = `<span style="width: 6px; height: 6px; border-radius: 50%; background: white;"></span>`;
+          } else {
+            // Estado futuro
+            circleStyle = 'background: var(--bg-card); border-color: var(--border-soft); color: var(--text-muted);';
+            textStyle += 'color: var(--text-muted);';
+            iconHtml = '';
+          }
+
+          return `
+            <div class="pipeline-step" style="display: flex; flex-direction: column; align-items: center; position: relative; z-index: 2; flex: 1;">
+              <div class="pipeline-circle" style="width: 24px; height: 24px; border-radius: 50%; border: 2px solid; display: flex; align-items: center; justify-content: center; transition: all 0.3s ease; ${circleStyle}">
+                ${iconHtml}
+              </div>
+              <span style="${textStyle}">${state.label}</span>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  `;
+
+  // Banner especial para estados cancelados o inasistencias
+  let cancellationBannerHtml = '';
+  if (apt.status === 'cancelada' || apt.status === 'no_asistio') {
+    cancellationBannerHtml = `
+      <div style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.15); border-radius: var(--radius-sm); padding: var(--space-3) var(--space-4); display: flex; align-items: flex-start; gap: var(--space-3); margin-bottom: var(--space-4);">
+        <i data-lucide="x" style="color: var(--color-danger); flex-shrink: 0; margin-top: 2px;"></i>
+        <div style="display: flex; flex-direction: column;">
+          <span style="color: var(--color-danger); font-size: var(--text-sm); font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">
+            ${apt.status === 'cancelada' ? 'Cita Cancelada' : 'No Asistió'}
+          </span>
+          ${apt.status === 'cancelada' && apt.cancellation_reason ? `
+            <span style="font-size: var(--text-xs); color: var(--text-secondary); margin-top: 2px; font-style: italic;">
+              Motivo: "${apt.cancellation_reason}"
+            </span>
+          ` : ''}
+        </div>
+      </div>
+    `;
+  }
+
+  // 2. Botones de acción dinámicos según estado
+  let actionsHtml = '';
+  if (apt.status === 'pendiente') {
+    actionsHtml = `
+      <div class="apt-modal-section" id="apt-actions-section" style="border-top: 1px solid var(--border-soft); padding-top: var(--space-4); display: flex; flex-direction: column; gap: var(--space-2.5);">
+        <button class="btn btn-primary" id="btn-action-confirm" style="width: 100%; height: 40px; justify-content: center; font-weight: 700;">
+          <i data-lucide="check" size="16" style="margin-right: var(--space-2);"></i>
+          Confirmar asistencia
+        </button>
+        <div style="display: flex; gap: var(--space-3); width: 100%;">
+          <button class="btn btn-secondary" id="btn-action-no-show" style="flex: 1; height: 38px; justify-content: center; font-size: var(--text-sm); font-weight: 600; color: var(--text-secondary); border-color: var(--border-soft);">
+            <i data-lucide="clock" size="14" style="margin-right: var(--space-1.5);"></i>
+            No asistió
+          </button>
+          <button class="btn btn-secondary" id="btn-action-cancel" style="flex: 1; height: 38px; justify-content: center; font-size: var(--text-sm); font-weight: 600; color: var(--color-danger); border-color: rgba(239, 68, 68, 0.2); background: rgba(239, 68, 68, 0.01);">
+            <i data-lucide="x" size="14" style="margin-right: var(--space-1.5);"></i>
+            Cancelar cita
+          </button>
+        </div>
+      </div>
+    `;
+  } else if (apt.status === 'confirmada') {
+    actionsHtml = `
+      <div class="apt-modal-section" id="apt-actions-section" style="border-top: 1px solid var(--border-soft); padding-top: var(--space-4); display: flex; flex-direction: column; gap: var(--space-2.5);">
+        <button class="btn btn-primary" id="btn-action-complete" style="width: 100%; height: 40px; justify-content: center; font-weight: 700; background: var(--color-success); border-color: var(--color-success);">
+          <i data-lucide="check" size="16" style="margin-right: var(--space-2);"></i>
+          Marcar como completada
+        </button>
+        <div style="display: flex; gap: var(--space-3); width: 100%;">
+          <button class="btn btn-secondary" id="btn-action-no-show" style="flex: 1; height: 38px; justify-content: center; font-size: var(--text-sm); font-weight: 600; color: var(--text-secondary); border-color: var(--border-soft);">
+            <i data-lucide="clock" size="14" style="margin-right: var(--space-1.5);"></i>
+            No asistió
+          </button>
+          <button class="btn btn-secondary" id="btn-action-cancel" style="flex: 1; height: 38px; justify-content: center; font-size: var(--text-sm); font-weight: 600; color: var(--color-danger); border-color: rgba(239, 68, 68, 0.2); background: rgba(239, 68, 68, 0.01);">
+            <i data-lucide="x" size="14" style="margin-right: var(--space-1.5);"></i>
+            Cancelar cita
+          </button>
+        </div>
+      </div>
+    `;
+  } else if (apt.status === 'completada') {
+    actionsHtml = `
+      <div class="apt-modal-section" id="apt-actions-section" style="border-top: 1px solid var(--border-soft); padding-top: var(--space-4);">
+        <button class="btn btn-primary" id="btn-action-invoice" style="width: 100%; height: 42px; justify-content: center; font-weight: 800; background: var(--grad-cta); box-shadow: 0 4px 12px rgba(139, 92, 255, 0.2);">
+          Ir a Facturación
+          <i data-lucide="arrow-right" size="16" style="margin-left: var(--space-2);"></i>
+        </button>
+      </div>
+    `;
+  }
+
+  const isReadOnly = ['facturada', 'cancelada', 'no_asistio'].includes(apt.status);
+
+  // Footer condicional (solo visible si no es de solo lectura)
+  let footerHtml = '';
+  if (!isReadOnly) {
+    footerHtml = `
+      <div class="apt-modal-footer" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+        <button class="btn btn-secondary" id="apt-detail-delete-btn" style="
+          color: #ef4444; 
+          border-color: rgba(239, 68, 68, 0.2); 
+          background: rgba(239, 68, 68, 0.02);
+          height: 40px;
+          padding-inline: var(--space-4);
+        ">
+          <i data-lucide="trash-2" size="16" style="margin-right: var(--space-2);"></i>
+          Eliminar Cita
+        </button>
+        <button class="btn btn-primary" id="apt-detail-edit-btn" style="
+          height: 40px;
+          padding-inline: var(--space-4);
+        ">
+          <i data-lucide="edit-3" size="16" style="margin-right: var(--space-2);"></i>
+          Editar Cita
+        </button>
+      </div>
+    `;
+  }
+
+  // 3. Lógica de transición de estados
+  const transicionarEstado = async (nuevoEstado, metadata = {}) => {
+    try {
+      if (nuevoEstado === 'facturada') {
+        navegarAFacturacion(apt);
+        closeModal();
+        return;
+      }
+
+      const updateData = { status: nuevoEstado };
+      if (nuevoEstado === 'completada') {
+        updateData.completed_at = new Date().toISOString();
+      } else if (nuevoEstado === 'cancelada') {
+        updateData.cancelled_at = new Date().toISOString();
+        updateData.cancellation_reason = metadata.reason || null;
+      }
+
+      const { error } = await supabase
+        .from('appointments')
+        .update(updateData)
+        .eq('id', apt.id);
+
+      if (error) throw error;
+
+      // Actualizar objeto apt localmente
+      apt.status = nuevoEstado;
+      if (nuevoEstado === 'completada') {
+        apt.completed_at = updateData.completed_at;
+      } else if (nuevoEstado === 'cancelada') {
+        apt.cancelled_at = updateData.cancelled_at;
+        apt.cancellation_reason = updateData.cancellation_reason;
+      }
+
+      // Disparar evento global para recargar appointments en agenda y CRM
+      const bizId = getActiveBusinessId();
+      window.dispatchEvent(new CustomEvent('citum_appointments_changed', { detail: { businessId: bizId } }));
+
+      // Notificar al calendario para actualizar UI instantáneamente
+      if (onUpdate) {
+        await onUpdate(apt);
+      }
+
+      showToast({
+        title: 'Estado actualizado',
+        subtitle: `La cita ahora está en estado "${nuevoEstado}".`,
+        type: 'success'
+      });
+
+      // Re-renderizar este mismo modal
+      openAptDetailModal({ apt, onEdit, onDelete, onUpdate });
+
+    } catch (err) {
+      console.error('[transicionarEstado] Error:', err);
+      showToast({
+        title: 'Error al actualizar estado',
+        subtitle: err.message,
+        type: 'error'
+      });
+    }
+  };
+
+  // 4. Función navegarAFacturacion
+  const navegarAFacturacion = (appointment) => {
+    window.pendingInvoiceContext = appointment;
+    const navItem = document.querySelector('.sidebar-item[data-section="facturacion"]');
+    if (navItem) {
+      navItem.click();
+    }
+  };
+
   root.innerHTML = `
     <div class="apt-modal" role="dialog" aria-modal="true" style="max-width: 480px;">
       <div class="apt-modal-header">
@@ -54,8 +393,12 @@ export async function openAptDetailModal({ apt, onEdit = null, onDelete = null }
           <i data-lucide="x"></i>
         </button>
       </div>
-
+ 
       <div class="apt-modal-body">
+        <!-- 📈 Pipeline de Estados -->
+        ${pipelineHtml}
+        ${cancellationBannerHtml}
+
         <!-- 👤 Información del cliente (sin avatar) -->
         <div class="apt-modal-section">
           <div class="apt-detail-client-section" style="display: flex; flex-direction: column; gap: var(--space-2);">
@@ -78,7 +421,7 @@ export async function openAptDetailModal({ apt, onEdit = null, onDelete = null }
             </div>
           </div>
         </div>
-
+ 
         <!-- 📋 Detalles de asignación y fecha -->
         <div class="apt-modal-section">
           <div class="apt-modal-section-title">
@@ -94,7 +437,7 @@ export async function openAptDetailModal({ apt, onEdit = null, onDelete = null }
                 <span style="font-size: var(--text-sm); font-weight: 700; color: var(--text-primary); margin-top: 2px;">${apt.prof}</span>
               </div>
             </div>
-
+ 
             <div style="display: flex; gap: var(--space-2); align-items: flex-start;">
               <div style="color: var(--accent-neon); margin-top: 2px;"><i data-lucide="tag" size="14"></i></div>
               <div style="display: flex; flex-direction: column;">
@@ -109,8 +452,8 @@ export async function openAptDetailModal({ apt, onEdit = null, onDelete = null }
                     font-weight: 700;
                     text-transform: capitalize;
                     border: 1px solid var(--border-soft);
-                    background: ${apt.status === 'pendiente' ? 'var(--bg-secondary)' : 'rgba(139, 92, 255, 0.08)'};
-                    color: ${apt.status === 'pendiente' ? 'var(--text-secondary)' : 'var(--accent-neon)'};
+                    background: ${statusStyle.bg};
+                    color: ${statusStyle.color};
                   ">
                     <span style="
                       width: 6px;
@@ -118,7 +461,7 @@ export async function openAptDetailModal({ apt, onEdit = null, onDelete = null }
                       border-radius: 50%;
                       display: inline-block;
                       margin-right: var(--space-1);
-                      background: ${apt.status === 'pendiente' ? 'var(--text-muted)' : 'var(--accent-neon)'};
+                      background: ${statusStyle.dot};
                     "></span>
                     ${apt.status || 'confirmada'}
                   </span>
@@ -126,7 +469,7 @@ export async function openAptDetailModal({ apt, onEdit = null, onDelete = null }
               </div>
             </div>
           </div>
-
+ 
           <div style="display: flex; gap: var(--space-2); align-items: flex-start; margin-top: var(--space-2);">
             <div style="color: var(--accent-neon); margin-top: 2px;"><i data-lucide="clock" size="14"></i></div>
             <div style="display: flex; flex-direction: column;">
@@ -135,11 +478,11 @@ export async function openAptDetailModal({ apt, onEdit = null, onDelete = null }
             </div>
           </div>
         </div>
-
+ 
         <!-- ✂️ Desglose de servicios -->
         <div class="apt-modal-section">
           <div class="apt-modal-section-title">
-            <i data-lucide="scissors" size="14"></i>
+            <i data-lucide="briefcase" size="14"></i>
             Servicios Contratados
           </div>
           <div class="apt-detail-services-box" style="
@@ -154,8 +497,11 @@ export async function openAptDetailModal({ apt, onEdit = null, onDelete = null }
             ${servicesList.map(srv => {
               const price = SERVICE_PRICES[srv] || 0;
               return `
-                <div class="apt-detail-service-row" style="display: flex; justify-content: space-between; font-size: var(--text-sm); font-weight: 700; color: var(--text-primary);">
-                  <span>✂️ ${srv}</span>
+                <div class="apt-detail-service-row" style="display: flex; justify-content: space-between; font-size: var(--text-sm); font-weight: 700; color: var(--text-primary); align-items: center;">
+                  <span style="display: inline-flex; align-items: center; gap: 6px;">
+                    <i data-lucide="chevron-right" style="width: 14px; height: 14px; stroke-width: 2.5; color: var(--accent-neon);"></i>
+                    ${srv}
+                  </span>
                   <span class="apt-detail-service-price" style="color: var(--accent-neon); font-weight: 800;">${price > 0 ? `$${price.toLocaleString('es-CO')}` : 'Consultar'}</span>
                 </div>
               `;
@@ -176,7 +522,7 @@ export async function openAptDetailModal({ apt, onEdit = null, onDelete = null }
             </div>
           </div>
         </div>
-
+ 
         <!-- 📝 Notas internas -->
         ${apt.notes ? `
           <div class="apt-modal-section">
@@ -196,27 +542,11 @@ export async function openAptDetailModal({ apt, onEdit = null, onDelete = null }
             ">${apt.notes}</div>
           </div>
         ` : ''}
-      </div>
 
-      <div class="apt-modal-footer" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-        <button class="btn btn-secondary" id="apt-detail-delete-btn" style="
-          color: #ef4444; 
-          border-color: rgba(239, 68, 68, 0.2); 
-          background: rgba(239, 68, 68, 0.02);
-          height: 40px;
-          padding-inline: var(--space-4);
-        ">
-          <i data-lucide="trash-2" size="16" style="margin-right: var(--space-2);"></i>
-          Eliminar Cita
-        </button>
-        <button class="btn btn-primary" id="apt-detail-edit-btn" style="
-          height: 40px;
-          padding-inline: var(--space-4);
-        ">
-          <i data-lucide="edit-3" size="16" style="margin-right: var(--space-2);"></i>
-          Editar Cita
-        </button>
+        <!-- ⚡ Acciones del Pipeline -->
+        ${actionsHtml}
       </div>
+      ${footerHtml}
     </div>
   `;
 
@@ -261,33 +591,66 @@ export async function openAptDetailModal({ apt, onEdit = null, onDelete = null }
   };
   document.addEventListener('keydown', escapeHandler);
 
-  // Botón Editar
-  root.querySelector('#apt-detail-edit-btn').addEventListener('click', () => {
-    closeModal();
-    if (onEdit) {
-      onEdit(apt);
-    }
-  });
-
-  // Botón Eliminar
-  root.querySelector('#apt-detail-delete-btn').addEventListener('click', () => {
-    showConfirm({
-      title: 'Eliminar Cita',
-      message: `¿Estás seguro de que deseas eliminar la cita de <strong>${apt.client}</strong> para el <strong>${formatDateSpanish(apt.date)} a las ${apt.time}</strong>? Esta acción es irreversible.`,
-      confirmLabel: 'Sí, Eliminar',
-      cancelLabel: 'Cancelar',
-      confirmVariant: 'danger',
-      onConfirm: () => {
-        closeModal();
-        if (onDelete) {
-          onDelete(apt);
-        }
-        showToast({
-          title: 'Cita eliminada',
-          subtitle: `La cita de ${apt.client} ha sido eliminada con éxito.`,
-          type: 'success'
-        });
+  // Botón Editar (si existe)
+  const editBtn = root.querySelector('#apt-detail-edit-btn');
+  if (editBtn) {
+    editBtn.addEventListener('click', () => {
+      closeModal();
+      if (onEdit) {
+        onEdit(apt);
       }
     });
-  });
+  }
+
+  // Botón Eliminar (si existe)
+  const deleteBtn = root.querySelector('#apt-detail-delete-btn');
+  if (deleteBtn) {
+    deleteBtn.addEventListener('click', () => {
+      showConfirm({
+        title: 'Eliminar Cita',
+        message: `¿Estás seguro de que deseas eliminar la cita de <strong>${apt.client}</strong> para el <strong>${formatDateSpanish(apt.date)} a las ${apt.time}</strong>? Esta acción es irreversible.`,
+        confirmLabel: 'Sí, Eliminar',
+        cancelLabel: 'Cancelar',
+        confirmVariant: 'danger',
+        onConfirm: () => {
+          closeModal();
+          if (onDelete) {
+            onDelete(apt);
+          }
+          showToast({
+            title: 'Cita eliminada',
+            subtitle: `La cita de ${apt.client} ha sido eliminada con éxito.`,
+            type: 'success'
+          });
+        }
+      });
+    });
+  }
+
+  // Listeners de Acciones de Transición
+  const confirmBtn = root.querySelector('#btn-action-confirm');
+  if (confirmBtn) {
+    confirmBtn.addEventListener('click', () => transicionarEstado('confirmada'));
+  }
+  const completeBtn = root.querySelector('#btn-action-complete');
+  if (completeBtn) {
+    completeBtn.addEventListener('click', () => transicionarEstado('completada'));
+  }
+  const noShowBtn = root.querySelector('#btn-action-no-show');
+  if (noShowBtn) {
+    noShowBtn.addEventListener('click', () => transicionarEstado('no_asistio'));
+  }
+  const invoiceBtn = root.querySelector('#btn-action-invoice');
+  if (invoiceBtn) {
+    invoiceBtn.addEventListener('click', () => transicionarEstado('facturada'));
+  }
+  const cancelBtn = root.querySelector('#btn-action-cancel');
+  if (cancelBtn) {
+    cancelBtn.addEventListener('click', async () => {
+      const res = await showCancellationReasonModal();
+      if (res.confirmed) {
+        transicionarEstado('cancelada', { reason: res.reason });
+      }
+    });
+  }
 }

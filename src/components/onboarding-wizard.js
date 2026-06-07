@@ -52,7 +52,7 @@ export async function mountOnboardingWizard(containerElement) {
           <div class="onboarding-step active" id="step-1">
             <div class="form-group">
               <label for="ob-biz-name">Nombre del Negocio</label>
-              <input type="text" class="form-input" id="ob-biz-name" placeholder="Ej. Barbería Imperial" required>
+              <input type="text" class="form-input" id="ob-biz-name" placeholder="Ej. Consultorio Sonrisas" required>
             </div>
             <div class="form-group">
               <label for="ob-biz-phone">Teléfono (Opcional)</label>
@@ -64,7 +64,7 @@ export async function mountOnboardingWizard(containerElement) {
           <div class="onboarding-step" id="step-2">
             <div class="form-group">
               <label for="ob-srv-name">Tu Primer Servicio</label>
-              <input type="text" class="form-input" id="ob-srv-name" placeholder="Ej. Corte de Cabello" required>
+              <input type="text" class="form-input" id="ob-srv-name" placeholder="Ej. Consulta de Diagnóstico" required>
             </div>
             <div class="form-group">
               <label for="ob-srv-price">Precio</label>

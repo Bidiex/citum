@@ -46,6 +46,11 @@
   --biz-accent: #8B5CF6;
   --biz-accent-light: rgba(139, 92, 255, 0.12);
   --biz-accent-text: #ffffff;
+  --color-primary: var(--accent-purple);
+  --color-success: #10b981;
+  --color-danger: #ef4444;
+  --color-warning: #f59e0b;
+  --color-text-subtle: var(--text-muted);
 
   /* Breakpoints standard */
   --bp-sm:  576px;

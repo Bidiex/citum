@@ -6,9 +6,9 @@
 
 ## 1. Visión del Producto
 
-Citum es un SaaS de gestión para barberías, salones de belleza y negocios de servicios similares. Permite a propietarios gestionar sus negocios desde un panel centralizado: agendamiento, profesionales, servicios, facturación y más. A los clientes finales les ofrece una interfaz pública de agendamiento por negocio.
+Citum es un SaaS de gestión y agendamiento para profesionales independientes y negocios que prestan servicios de cualquier tipo (salud, bienestar, belleza, asesoría, educación, reparaciones, y más). Permite a propietarios gestionar sus negocios desde un panel centralizado: agendamiento, profesionales, servicios, facturación y más. A los clientes finales les ofrece una interfaz pública de agendamiento por negocio.
 
-**Modelo de negocio:** 1 usuario → N negocios. Un mismo propietario puede tener una barbería y un salón bajo la misma cuenta.
+**Modelo de negocio:** 1 usuario → N negocios. Un mismo propietario puede tener un consultorio y un salón de belleza bajo la misma cuenta.
 
 ---
 
@@ -157,7 +157,7 @@ professionals
   id            uuid  PK
   business_id   uuid  → businesses.id
   name          text
-  role          text  (ej: "Barbero", "Estilista")
+  role          text  (ej: "Odontólogo", "Estilista", "Asesor")
   phone         text
   avatar_url    text
   is_active     bool
@@ -364,7 +364,7 @@ Esta función la llamará tanto el panel (crear cita manual) como la UI pública
 **Sidebar — secciones:**
 - 📅 Agenda
 - 👥 Profesionales
-- ✂️ Servicios
+- 💼 Servicios
 - 🏠 Negocios
 - 🧾 Facturación
 - ⚙️ Configuración (futura)

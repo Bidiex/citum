@@ -48,7 +48,7 @@ export async function init(container) {
 
         ${services.length === 0 ? `
           <div class="crm-empty-state">
-            <i data-lucide="scissors"></i>
+            <i data-lucide="briefcase"></i>
             <h3>No hay servicios registrados</h3>
             <p>Comienza creando el primer servicio para que tus clientes puedan reservar citas en línea.</p>
           </div>

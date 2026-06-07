@@ -106,3 +106,12 @@ export function parseColombiaToTimestamptz(dateStr, timeStr) {
   const isoStr = `${dateStr}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00-05:00`;
   return new Date(isoStr).toISOString();
 }
+
+export const STATUS_COLORS = {
+  pendiente:   'var(--color-warning)',
+  confirmada:  'var(--color-primary)',
+  completada:  'var(--color-success)',
+  facturada:   '#22c55e', // mismo success pero con check icon
+  cancelada:   'var(--color-danger)',
+  no_asistio:  'var(--color-text-subtle)'
+};

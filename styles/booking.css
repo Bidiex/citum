@@ -437,3 +437,98 @@
   cursor: not-allowed;
   transform: none;
 }
+
+/* Slot wheel picker - iOS style */
+.slot-wheel-wrapper {
+  --wheel-bg: rgba(var(--biz-accent-rgb, 139, 92, 255), 0.05);
+  position: relative;
+  height: 220px;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  background: var(--wheel-bg);
+  border: 1px solid var(--biz-accent);
+  box-shadow: 0 8px 32px rgba(var(--biz-accent-rgb, 139, 92, 255), 0.08);
+  max-width: 260px;
+  margin: var(--space-3) auto;
+  grid-column: 1 / -1;
+}
+
+.slot-wheel {
+  height: 100%;
+  overflow-y: scroll;
+  scroll-snap-type: y mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding: 80px 0; /* centra el primer y último item */
+  perspective: 400px;
+}
+
+.slot-wheel::-webkit-scrollbar { display: none; }
+
+.slot-wheel-item {
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  scroll-snap-align: center;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.2s, font-size 0.2s, font-weight 0.2s, opacity 0.2s, transform 0.2s;
+  user-select: none;
+  opacity: 0.4;
+  transform: scale(0.85);
+  padding: 0 var(--space-4);
+}
+
+.slot-wheel-item.active {
+  color: var(--biz-accent);
+  font-size: 22px;
+  font-weight: 800;
+  opacity: 1;
+  transform: scale(1);
+}
+
+.slot-wheel-item.now-slot {
+  color: var(--text-muted); /* mismo que items normales */
+}
+
+.slot-wheel-item.now-slot.active {
+  color: var(--biz-accent); /* mismo que active normal */
+}
+
+/* Líneas del selector central — efecto iOS */
+.slot-wheel-selector {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 60px;
+  transform: translateY(-50%);
+  border-top: 2px solid var(--biz-accent);
+  border-bottom: 2px solid var(--biz-accent);
+  pointer-events: none;
+  opacity: 0.6;
+  background: rgba(var(--biz-accent-rgb, 139, 92, 255), 0.08);
+}
+
+/* Degradados superior e inferior para efecto de desvanecimiento */
+.slot-wheel-fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 80px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.slot-wheel-fade--top {
+  top: 0;
+  background: linear-gradient(to bottom, var(--wheel-bg, rgba(139, 92, 255, 0.05)) 0%, transparent 100%);
+}
+
+.slot-wheel-fade--bottom {
+  bottom: 0;
+  background: linear-gradient(to top, var(--wheel-bg, rgba(139, 92, 255, 0.05)) 0%, transparent 100%);
+}

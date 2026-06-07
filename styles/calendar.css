@@ -105,6 +105,7 @@
   position: relative;
   min-height: 720px; /* 12 hours * 60px/hour */
   background: var(--bg-card);
+  padding-bottom: 10px; /* Mantener padding inferior para espaciado final */
 }
 
 .cal-grid.cal-grid-week {
@@ -118,6 +119,7 @@
   user-select: none;
   position: relative;
   z-index: 10;
+  padding-top: 10px; /* Alinear con el inicio de las líneas y citas */
 }
 
 .cal-hour-label {
@@ -126,10 +128,15 @@
   align-items: flex-start;
   justify-content: flex-end;
   padding-right: var(--space-3);
-  padding-top: var(--space-1);
+  padding-top: 0; /* Reset top padding to allow exact line alignment */
   font-size: 11px;
   font-weight: 700;
   color: var(--text-muted);
+}
+
+.cal-hour-label span {
+  transform: translateY(-50%); /* Centrar verticalmente en la línea divisoria */
+  display: inline-block;
 }
 
 /* Day Columns */
@@ -145,7 +152,7 @@
 /* Hour Grid Lines */
 .cal-grid-lines {
   position: absolute;
-  top: 0;
+  top: 10px; /* Alinear con el padding-top de cal-time-col */
   left: 0;
   right: 0;
   bottom: 0;
@@ -158,6 +165,8 @@
   height: 60px;
   border-bottom: 1px dashed var(--border-soft);
   box-sizing: border-box;
+  flex-shrink: 0;
+  flex-grow: 0;
 }
 
 /* Week Days Header Row (sticky at top of scroll) */
@@ -223,6 +232,7 @@
   position: absolute;
   left: 6px;
   right: 6px;
+  margin-top: 10px; /* Alinear con el padding-top de cal-time-col */
   border-radius: var(--radius-sm);
   padding: var(--space-2) var(--space-3);
   overflow: hidden;
@@ -256,15 +266,57 @@
 }
 
 .cal-apt-card.pendiente {
-  background: var(--bg-secondary);
+  background: rgba(245, 158, 11, 0.06);
+  border-left-color: var(--color-warning);
+  border-right: 1px solid rgba(245, 158, 11, 0.15);
+  border-top: 1px solid rgba(245, 158, 11, 0.15);
+  border-bottom: 1px solid rgba(245, 158, 11, 0.15);
+}
+
+.cal-apt-card.pendiente:hover {
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.cal-apt-card.completada,
+.cal-apt-card.facturada {
+  background: rgba(16, 185, 129, 0.08);
+  border-left-color: var(--color-success);
+  border-right: 1px solid rgba(16, 185, 129, 0.15);
+  border-top: 1px solid rgba(16, 185, 129, 0.15);
+  border-bottom: 1px solid rgba(16, 185, 129, 0.15);
+}
+
+.cal-apt-card.completada:hover,
+.cal-apt-card.facturada:hover {
+  background: rgba(16, 185, 129, 0.12);
+}
+
+.cal-apt-card.cancelada {
+  background: rgba(239, 68, 68, 0.08);
+  border-left-color: var(--color-danger);
+  border-right: 1px solid rgba(239, 68, 68, 0.15);
+  border-top: 1px solid rgba(239, 68, 68, 0.15);
+  border-bottom: 1px solid rgba(239, 68, 68, 0.15);
+  opacity: 0.7;
+}
+
+.cal-apt-card.cancelada:hover {
+  background: rgba(239, 68, 68, 0.12);
+  opacity: 0.95;
+}
+
+.cal-apt-card.no_asistio {
+  background: rgba(142, 138, 174, 0.08);
   border-left-color: var(--text-muted);
   border-right: 1px solid var(--border-soft);
   border-top: 1px solid var(--border-soft);
   border-bottom: 1px solid var(--border-soft);
+  opacity: 0.7;
 }
 
-.cal-apt-card.pendiente:hover {
-  background: var(--bg-card-hover);
+.cal-apt-card.no_asistio:hover {
+  background: rgba(142, 138, 174, 0.12);
+  opacity: 0.95;
 }
 
 /* Card Content details */
@@ -281,7 +333,20 @@
 }
 
 .cal-apt-card.pendiente .cal-apt-time {
-  color: var(--text-secondary);
+  color: var(--color-warning);
+}
+
+.cal-apt-card.completada .cal-apt-time,
+.cal-apt-card.facturada .cal-apt-time {
+  color: var(--color-success);
+}
+
+.cal-apt-card.cancelada .cal-apt-time {
+  color: var(--color-danger);
+}
+
+.cal-apt-card.no_asistio .cal-apt-time {
+  color: var(--text-muted);
 }
 
 .cal-apt-client {
@@ -343,12 +408,13 @@
 /* Current time red line indicator */
 .cal-current-time-line {
   position: absolute;
-  left: 80px;
+  left: 0; /* Alinear con la columna actual, ya que es hijo directo de cal-day-col */
   right: 0;
   height: 2px;
   background-color: #ef4444;
   z-index: 12;
   pointer-events: none;
+  margin-top: 10px; /* Alinear con el padding-top de cal-time-col */
 }
 
 .cal-current-time-line::before {

@@ -85,7 +85,7 @@ export async function openServiceModal({ mode = 'create', serviceData = null, on
             type="text" 
             id="srv-name" 
             class="form-input" 
-            placeholder="Ej. Corte de Cabello Premium" 
+            placeholder="Ej. Consulta de Diagnóstico" 
             value="${name}"
             required
           />
@@ -126,7 +126,7 @@ export async function openServiceModal({ mode = 'create', serviceData = null, on
           <textarea 
             id="srv-desc" 
             class="form-input" 
-            placeholder="Ej. Lavado capilar, corte personalizado y peinado." 
+            placeholder="Ej. Evaluación general, diagnóstico y plan de tratamiento." 
             rows="3"
             style="resize: vertical; font-family: inherit;"
           >${desc}</textarea>

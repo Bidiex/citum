@@ -421,7 +421,10 @@ export async function getAppointments(businessId) {
       status: apt.status,
       notes: apt.notes,
       totalPrice: Number(apt.total_price),
-      rawServices: apt.appointment_services
+      rawServices: apt.appointment_services,
+      completed_at: apt.completed_at,
+      cancelled_at: apt.cancelled_at,
+      cancellation_reason: apt.cancellation_reason
     };
   });
 }

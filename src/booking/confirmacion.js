@@ -25,7 +25,7 @@ export function init(container, state, actions) {
       <!-- Resumen Detallado -->
       <div class="summary-card" id="booking-summary-card">
         <div class="summary-header">
-          <i data-lucide="info" size="16" style="color: var(--accent-neon);"></i>
+          <i data-lucide="info" size="16" style="color: var(--biz-accent);"></i>
           <span>Detalles Seleccionados</span>
         </div>
         
@@ -211,8 +211,8 @@ export function init(container, state, actions) {
       transition: all var(--transition-base);
     }
     .input-booking:focus {
-      border-color: var(--accent-purple);
-      box-shadow: 0 0 0 3px rgba(139, 92, 255, 0.15);
+      border-color: var(--biz-accent);
+      box-shadow: 0 0 0 3px rgba(var(--biz-accent-rgb, 139, 92, 255), 0.15);
     }
     .textarea-booking {
       height: auto;

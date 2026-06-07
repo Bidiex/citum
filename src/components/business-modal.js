@@ -136,7 +136,7 @@ export function openBusinessModal({ mode = 'create', businessData = null, onSave
             type="text" 
             id="biz-name" 
             class="form-input" 
-            placeholder="Ej. Barbería Imperial" 
+            placeholder="Ej. Consultorio Sonrisas" 
             value="${name}"
             ${mode === 'edit' ? 'readonly' : ''}
             required

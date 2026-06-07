@@ -9,8 +9,9 @@ import {
   getActiveBusiness
 } from '../utils/businessState.js';
 import { generateClientTicket, generateServiceTicket } from '../utils/pdf.js';
+import { supabase } from '../core/supabase.js';
 
-export async function openPosModal({ onSave = null } = {}) {
+export async function openPosModal({ onSave = null, appointmentContext = null } = {}) {
   const bizId = getActiveBusinessId();
   const business = getActiveBusiness();
   
@@ -33,6 +34,14 @@ export async function openPosModal({ onSave = null } = {}) {
   root.className = 'apt-modal-overlay';
 
   let selectedServices = [];
+  if (appointmentContext) {
+    const contextServiceIds = (appointmentContext.rawServices || []).map(s => s.service_id);
+    SERVICES.forEach(srv => {
+      if (contextServiceIds.includes(srv.id)) {
+        selectedServices.push(srv);
+      }
+    });
+  }
 
   root.innerHTML = `
     <div class="apt-modal" role="dialog" aria-modal="true" style="max-width: 600px;">
@@ -55,16 +64,16 @@ export async function openPosModal({ onSave = null } = {}) {
           </div>
           <div class="form-group autocomplete-container">
             <label for="pos-client-name">Nombre completo *</label>
-            <input type="text" id="pos-client-name" class="form-input" placeholder="Ej. Carlos Mendoza" autocomplete="off" required />
+            <input type="text" id="pos-client-name" class="form-input" placeholder="Ej. Carlos Mendoza" autocomplete="off" required value="${appointmentContext ? appointmentContext.client : ''}" />
           </div>
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4);">
             <div class="form-group autocomplete-container">
               <label for="pos-client-phone">Teléfono (opcional)</label>
-              <input type="tel" id="pos-client-phone" class="form-input" placeholder="Ej. 3001234567" autocomplete="off" />
+              <input type="tel" id="pos-client-phone" class="form-input" placeholder="Ej. 3001234567" autocomplete="off" value="${appointmentContext && appointmentContext.phone ? appointmentContext.phone : ''}" />
             </div>
             <div class="form-group">
               <label for="pos-client-email">Email (opcional)</label>
-              <input type="email" id="pos-client-email" class="form-input" placeholder="Ej. cliente@correo.com" />
+              <input type="email" id="pos-client-email" class="form-input" placeholder="Ej. cliente@correo.com" value="${appointmentContext && appointmentContext.email ? appointmentContext.email : ''}" />
             </div>
           </div>
         </div>
@@ -72,24 +81,27 @@ export async function openPosModal({ onSave = null } = {}) {
         <!-- ✂️ SELECCIÓN DE SERVICIOS -->
         <div class="apt-modal-section">
           <div class="apt-modal-section-title">
-            <i data-lucide="scissors" size="14"></i>
+            <i data-lucide="briefcase" size="14"></i>
             Seleccionar Servicios
           </div>
           <div class="apt-services-grid" id="pos-services-list" style="max-height: 160px; overflow-y: auto;">
-            ${SERVICES.map((srv, index) => `
-              <div class="apt-service-item" data-index="${index}" data-id="${srv.id}" data-name="${srv.name}" data-price="${srv.price}">
-                <div class="apt-service-left">
-                  <div class="apt-service-checkbox">
-                    <i data-lucide="check" size="12"></i>
+            ${SERVICES.map((srv, index) => {
+              const isSelected = selectedServices.some(s => s.id === srv.id);
+              return `
+                <div class="apt-service-item ${isSelected ? 'selected' : ''}" data-index="${index}" data-id="${srv.id}" data-name="${srv.name}" data-price="${srv.price}">
+                  <div class="apt-service-left">
+                    <div class="apt-service-checkbox">
+                      <i data-lucide="check" size="12"></i>
+                    </div>
+                    <div>
+                      <div class="apt-service-name">${srv.name}</div>
+                      <div class="apt-service-meta">${srv.duration} min</div>
+                    </div>
                   </div>
-                  <div>
-                    <div class="apt-service-name">${srv.name}</div>
-                    <div class="apt-service-meta">${srv.duration} min</div>
-                  </div>
+                  <div class="apt-service-price">$${srv.price.toLocaleString('es-CO')}</div>
                 </div>
-                <div class="apt-service-price">$${srv.price.toLocaleString('es-CO')}</div>
-              </div>
-            `).join('')}
+              `;
+            }).join('')}
           </div>
         </div>
 
@@ -102,9 +114,12 @@ export async function openPosModal({ onSave = null } = {}) {
           <div class="form-group">
             <select class="form-input" id="pos-prof-select">
               <option value="">Selecciona un profesional...</option>
-              ${professionals.map(p => `
-                <option value="${p.id}" data-name="${p.name}">${p.name}</option>
-              `).join('')}
+              ${professionals.map(p => {
+                const isSelected = appointmentContext && appointmentContext.professional_id === p.id;
+                return `
+                  <option value="${p.id}" data-name="${p.name}" ${isSelected ? 'selected' : ''}>${p.name}</option>
+                `;
+              }).join('')}
             </select>
           </div>
         </div>
@@ -132,7 +147,7 @@ export async function openPosModal({ onSave = null } = {}) {
           </div>
           <div class="form-group" style="margin-top: var(--space-3);">
             <label for="pos-notes">Notas / Observaciones</label>
-            <input type="text" id="pos-notes" class="form-input" placeholder="Ej. Pago dividido, propina..." />
+            <input type="text" id="pos-notes" class="form-input" placeholder="Ej. Pago dividido, propina..." value="${appointmentContext && appointmentContext.notes ? appointmentContext.notes : ''}" />
           </div>
         </div>
 
@@ -257,6 +272,9 @@ export async function openPosModal({ onSave = null } = {}) {
 
   discountInput.addEventListener('input', recalculateTotales);
 
+  // Calcular Totales inicialmente
+  recalculateTotales();
+
   // Click en servicios
   servicesList.addEventListener('click', (e) => {
     const item = e.target.closest('.apt-service-item');
@@ -334,6 +352,7 @@ export async function openPosModal({ onSave = null } = {}) {
       const total = Math.max(0, subtotal - discount);
 
       const invoicePayload = {
+        appointment_id: appointmentContext ? appointmentContext.id : null,
         client_name: nameInput.value.trim(),
         client_phone: phoneInput.value.trim() || null,
         client_email: emailInput.value.trim() || null,
@@ -355,6 +374,18 @@ export async function openPosModal({ onSave = null } = {}) {
 
       // Insertar factura en la base de datos
       const invoice = await createInvoice(bizId, invoicePayload, itemsPayload);
+
+      // Si viene de una cita, actualizar su estado a 'facturada' en Supabase
+      if (appointmentContext) {
+        const { error: updateError } = await supabase
+          .from('appointments')
+          .update({ status: 'facturada' })
+          .eq('id', appointmentContext.id);
+
+        if (updateError) {
+          console.error('[pos-modal] Error al actualizar estado de cita:', updateError.message);
+        }
+      }
 
       // Generar e imprimir Ticket de Cobro PDF
       generateClientTicket(invoice, business);

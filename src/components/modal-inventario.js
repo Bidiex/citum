@@ -37,12 +37,12 @@ export function openProductModal({ mode = 'create', productData = null, onSave =
       <div class="biz-drawer-body">
         <div class="form-group">
           <label for="prod-name">Nombre del producto *</label>
-          <input type="text" id="prod-name" class="form-input" placeholder="Ej. Cera de Cabello Mate" value="${name}" required />
+          <input type="text" id="prod-name" class="form-input" placeholder="Ej. Gel de Contacto / Insumo Base" value="${name}" required />
         </div>
 
         <div class="form-group">
           <label for="prod-brand">Marca (opcional)</label>
-          <input type="text" id="prod-brand" class="form-input" placeholder="Ej. Elegance" value="${brand}" />
+          <input type="text" id="prod-brand" class="form-input" placeholder="Ej. Marca Distribuidora" value="${brand}" />
         </div>
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4);">

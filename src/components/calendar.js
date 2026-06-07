@@ -1,9 +1,13 @@
 import { openAptDetailModal } from './apt-detail-modal.js';
 import { openAppointmentModal } from './appointment-modal.js';
-import { getColombiaTodayStr, getColombiaTimeParts } from '../utils/format.js';
+import { getColombiaTodayStr, getColombiaTimeParts, STATUS_COLORS } from '../utils/format.js';
 
 // Duración de servicios por defecto
 const SERVICE_DURATIONS = {
+  'Consulta General': 30,
+  'Evaluación Inicial': 45,
+  'Asesoría Especializada': 60,
+  'Servicio Estándar': 30,
   'Corte Premium': 40,
   'Perfilado de Cejas': 15,
   'Afeitado de Barba': 30,
@@ -18,6 +22,8 @@ const TIME_LABELS = [
   '02:00 PM', '03:00 PM', '04:00 PM', '05:00 PM', '06:00 PM', '07:00 PM',
   '08:00 PM'
 ];
+
+
 
 function parseTimeString(timeStr) {
   if (!timeStr) return 480; // default 8am
@@ -110,6 +116,7 @@ export function initCalendar({
             <i data-lucide="chevron-left"></i>
           </button>
           <button class="cal-btn cal-btn-today" id="cal-today-btn">Hoy</button>
+          <button class="cal-btn cal-btn-today" id="cal-now-btn">Ahora</button>
           <button class="cal-btn" id="cal-next-btn" aria-label="Siguiente">
             <i data-lucide="chevron-right"></i>
           </button>
@@ -130,6 +137,7 @@ export function initCalendar({
   const prevBtn = container.querySelector('#cal-prev-btn');
   const nextBtn = container.querySelector('#cal-next-btn');
   const todayBtn = container.querySelector('#cal-today-btn');
+  const nowBtn = container.querySelector('#cal-now-btn');
   const titleText = container.querySelector('#cal-title-text');
   const toggleDay = container.querySelector('#cal-toggle-day');
   const toggleWeek = container.querySelector('#cal-toggle-week');
@@ -163,6 +171,21 @@ export function initCalendar({
   todayBtn.addEventListener('click', () => {
     currentDate = new Date(getColombiaTodayStr() + 'T00:00:00');
     render();
+  });
+
+  nowBtn.addEventListener('click', () => {
+    const todayStr = getColombiaTodayStr();
+    const currentDateStr = formatDateISO(currentDate);
+    if (currentDateStr !== todayStr) {
+      currentDate = new Date(todayStr + 'T00:00:00');
+      render();
+    }
+    
+    // Scroll suave a la hora actual (08:00 AM es 480 minutos)
+    const { hours, minutes } = getColombiaTimeParts();
+    const currentMinutes = hours * 60 + minutes;
+    const scrollTo = Math.max(0, Math.min(720, currentMinutes - 480));
+    scrollArea.scrollTo({ top: scrollTo, behavior: 'smooth' });
   });
 
   // Toggles de vistas (con persistencia)
@@ -226,7 +249,7 @@ export function initCalendar({
     gridContainer.className = 'cal-grid cal-grid-day';
     gridContainer.innerHTML = `
       <div class="cal-time-col">
-        ${TIME_LABELS.map(lbl => `<div class="cal-hour-label">${lbl}</div>`).join('')}
+        ${TIME_LABELS.map(lbl => `<div class="cal-hour-label"><span>${lbl}</span></div>`).join('')}
       </div>
       <div class="cal-day-col" id="cal-day-column" data-date="${dateStr}">
         <div class="cal-grid-lines">
@@ -280,7 +303,7 @@ export function initCalendar({
       </div>
       <div class="cal-grid cal-grid-week">
         <div class="cal-time-col">
-          ${TIME_LABELS.map(lbl => `<div class="cal-hour-label">${lbl}</div>`).join('')}
+          ${TIME_LABELS.map(lbl => `<div class="cal-hour-label"><span>${lbl}</span></div>`).join('')}
         </div>
         ${weekDays.map(d => {
           const dateStr = formatDateISO(d);
@@ -361,7 +384,10 @@ export function initCalendar({
 
         // Contenidos
         const serviceShort = item.apt.service.split(' + ')[0];
+        const statusColor = STATUS_COLORS[item.apt.status] || 'var(--color-primary)';
+        const statusTitle = (item.apt.status || 'confirmada').charAt(0).toUpperCase() + (item.apt.status || 'confirmada').slice(1).replace('_', ' ');
         card.innerHTML = `
+          <span class="apt-status-dot" style="background-color: ${statusColor};" title="${statusTitle}"></span>
           <div>
             <div class="cal-apt-time">${item.apt.time}</div>
             <div class="cal-apt-client">${item.apt.client}</div>
@@ -402,6 +428,13 @@ export function initCalendar({
               }
               if (onAppointmentDelete) {
                 onAppointmentDelete(deletedApt);
+              }
+              render();
+            },
+            onUpdate: async (updatedApt) => {
+              const idx = appointments.findIndex(a => a.id === updatedApt.id);
+              if (idx !== -1) {
+                appointments[idx] = updatedApt;
               }
               render();
             }

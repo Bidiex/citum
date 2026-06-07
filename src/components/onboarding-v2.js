@@ -274,15 +274,13 @@ function renderBizTypes() {
   if (!container) return;
 
   const types = [
-    { label: 'Barbería', icon: 'scissors' },
-    { label: 'Salón de belleza', icon: 'sparkles' },
-    { label: 'Spa', icon: 'flower' },
-    { label: 'Uñas y manicure', icon: 'hand' },
-    { label: 'Cejas y pestañas', icon: 'eye' },
-    { label: 'Maquillaje', icon: 'palette' },
-    { label: 'Masajes', icon: 'heart' },
-    { label: 'Estética corporal', icon: 'activity' },
-    { label: 'Peluquería', icon: 'smile' },
+    { label: 'Salud y Consultorios', icon: 'heart' },
+    { label: 'Barbería y Peluquería', icon: 'scissors' },
+    { label: 'Estética y Spa', icon: 'sparkles' },
+    { label: 'Clases y Tutorías', icon: 'book-open' },
+    { label: 'Servicios Profesionales', icon: 'briefcase' },
+    { label: 'Uñas y Manicure', icon: 'hand' },
+    { label: 'Reparaciones y Soporte', icon: 'wrench' },
     { label: 'Otro', icon: 'help-circle' }
   ];
 

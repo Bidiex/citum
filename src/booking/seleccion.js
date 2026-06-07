@@ -11,6 +11,15 @@ function parseTimeString(timeStr) {
   return hours * 60 + minutes;
 }
 
+function formatTimeString(minutesSinceMidnight) {
+  let hours = Math.floor(minutesSinceMidnight / 60);
+  const minutes = minutesSinceMidnight % 60;
+  const period = hours >= 12 ? 'PM' : 'AM';
+  if (hours > 12) hours -= 12;
+  if (hours === 0) hours = 12;
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')} ${period}`;
+}
+
 async function fetchAvailableSlots(profId, dateStr, totalDuration, professionals) {
   if (profId !== 'prof-1') {
     const { data, error } = await supabase.rpc('get_available_slots', {
@@ -209,16 +218,15 @@ export async function init(container, state, actions) {
       display: flex;
       align-items: center;
       gap: var(--space-4);
-      cursor: pointer;
       transition: all var(--transition-base);
     }
     .prof-card:hover {
       background: var(--bg-card);
-      border-color: rgba(139, 92, 255, 0.2);
+      border-color: rgba(var(--biz-accent-rgb, 139, 92, 255), 0.2);
     }
     .prof-card.selected {
-      background: rgba(139, 92, 255, 0.05);
-      border-color: var(--accent-purple);
+      background: rgba(var(--biz-accent-rgb, 139, 92, 255), 0.05);
+      border-color: var(--biz-accent);
     }
     .prof-avatar-placeholder {
       width: 36px;
@@ -232,8 +240,8 @@ export async function init(container, state, actions) {
       border: 1px solid var(--border-soft);
     }
     .prof-card.selected .prof-avatar-placeholder {
-      background: var(--accent-purple);
-      color: #ffffff;
+      background: var(--biz-accent);
+      color: var(--biz-accent-text, #ffffff);
     }
     .prof-name {
       font-size: var(--text-base);
@@ -264,12 +272,12 @@ export async function init(container, state, actions) {
     }
     .date-carousel-item:hover {
       background: var(--bg-card);
-      border-color: rgba(139, 92, 255, 0.2);
+      border-color: rgba(var(--biz-accent-rgb, 139, 92, 255), 0.2);
     }
     .date-carousel-item.selected {
-      background: rgba(139, 92, 255, 0.05);
-      border-color: var(--accent-purple);
-      box-shadow: 0 0 15px rgba(139, 92, 255, 0.1);
+      background: rgba(var(--biz-accent-rgb, 139, 92, 255), 0.05);
+      border-color: var(--biz-accent);
+      box-shadow: 0 0 15px rgba(var(--biz-accent-rgb, 139, 92, 255), 0.1);
     }
     .date-month {
       font-size: 10px;
@@ -288,14 +296,14 @@ export async function init(container, state, actions) {
     }
     .date-carousel-item.selected .date-month,
     .date-carousel-item.selected .date-day {
-      color: var(--accent-neon);
+      color: var(--biz-accent);
     }
     .date-carousel-item.disabled-date {
       opacity: 0.45;
       pointer-events: none;
       cursor: not-allowed;
     }
-
+ 
     .time-slots-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
@@ -315,14 +323,14 @@ export async function init(container, state, actions) {
     }
     .time-slot-btn:hover {
       background: var(--bg-card);
-      border-color: rgba(139, 92, 255, 0.2);
+      border-color: rgba(var(--biz-accent-rgb, 139, 92, 255), 0.2);
       color: var(--text-primary);
     }
     .time-slot-btn.selected {
-      background: var(--accent-purple);
-      border-color: var(--accent-purple);
-      color: #ffffff;
-      box-shadow: 0 0 12px rgba(139, 92, 255, 0.35);
+      background: var(--biz-accent);
+      border-color: var(--biz-accent);
+      color: var(--biz-accent-text, #ffffff);
+      box-shadow: 0 0 12px rgba(var(--biz-accent-rgb, 139, 92, 255), 0.35);
     }
   `;
   
@@ -336,6 +344,83 @@ export async function init(container, state, actions) {
 
   // Duración total requerida
   const totalDuration = state.selectedServices.reduce((sum, s) => sum + s.duration, 0);
+
+  // Renderizar ruleta de horarios tipo iOS
+  const renderSlotWheel = (slots, nowSlotTime, currentSelected) => {
+    const timeSlotsGrid = container.querySelector('.time-slots-grid');
+    if (!timeSlotsGrid) return;
+
+    timeSlotsGrid.innerHTML = `
+      <div class="slot-wheel-wrapper">
+        <div class="slot-wheel-fade slot-wheel-fade--top"></div>
+        <div class="slot-wheel" id="slot-wheel"></div>
+        <div class="slot-wheel-selector"></div>
+        <div class="slot-wheel-fade slot-wheel-fade--bottom"></div>
+      </div>
+    `;
+
+    const wheel = timeSlotsGrid.querySelector('#slot-wheel');
+
+    const effectiveSelected = currentSelected || (slots[0] === nowSlotTime ? nowSlotTime : null);
+
+    // Renderizar items
+    slots.forEach((time, index) => {
+      const item = document.createElement('div');
+      item.className = 'slot-wheel-item';
+      if (time === nowSlotTime) item.classList.add('now-slot');
+      if (time === effectiveSelected) item.classList.add('active');
+      item.textContent = time === nowSlotTime ? `Ahora (${time})` : time;
+      item.dataset.time = time;
+      item.dataset.index = index;
+      wheel.appendChild(item);
+    });
+
+    let ignoreScroll = true;
+
+    // Scroll al item seleccionado o al primero
+    const targetIndex = effectiveSelected ? slots.indexOf(effectiveSelected) : 0;
+
+    // Scroll inicial sin disparar selección
+    requestAnimationFrame(() => {
+      wheel.scrollTop = targetIndex * 60;
+      setTimeout(() => {
+        ignoreScroll = false;
+      }, 150);
+    });
+
+    // Solo habilitar si ya había selección previa confirmada o es "Ahora"
+    if (effectiveSelected && slots.includes(effectiveSelected)) {
+      state.selectedTimeSlot = effectiveSelected;
+      const nextBtn = document.getElementById('btn-next-step-2');
+      if (nextBtn) nextBtn.removeAttribute('disabled');
+    }
+
+    // Detectar item centrado en scroll y actualizar estado activo
+    let scrollTimer;
+    wheel.addEventListener('scroll', () => {
+      clearTimeout(scrollTimer);
+      scrollTimer = setTimeout(() => {
+        const centerIndex = Math.round(wheel.scrollTop / 60);
+        const items = wheel.querySelectorAll('.slot-wheel-item');
+        items.forEach((item, i) => {
+          item.classList.toggle('active', i === centerIndex);
+        });
+        const selectedTime = slots[centerIndex];
+        if (selectedTime && !ignoreScroll) {
+          state.selectedTimeSlot = selectedTime;
+          const nextBtn = document.getElementById('btn-next-step-2');
+          if (nextBtn) nextBtn.removeAttribute('disabled');
+        }
+      }, 80);
+    });
+
+    // Click directo en un item hace scroll hacia él
+    wheel.querySelectorAll('.slot-wheel-item').forEach((item, index) => {
+      item.addEventListener('click', () => {
+        wheel.scrollTo({ top: index * 60, behavior: 'smooth' });
+      });
+    });
+  };
 
   // Recarga de horarios
   const refreshSlots = async () => {
@@ -367,6 +452,22 @@ export async function init(container, state, actions) {
       slots = [];
     }
 
+    // Agregar slot "Ahora" si la fecha es hoy
+    let nowSlotTime = null;
+    if (state.selectedDate === todayStr) {
+      const nowParts = getColombiaTimeParts();
+      let nowMinutes = nowParts.hours * 60 + nowParts.minutes;
+      // Redondear hacia arriba al próximo múltiplo de 10 minutos
+      nowMinutes = Math.floor(nowMinutes / 10) * 10 + 10;
+      nowSlotTime = formatTimeString(nowMinutes);
+
+      // Solo agregar si no está ya en los slots disponibles y no es duplicado
+      const alreadyExists = slots.some(s => s === nowSlotTime);
+      if (!alreadyExists && slots.length > 0) {
+        slots = [nowSlotTime, ...slots];
+      }
+    }
+
     if (slots.length === 0) {
       timeSlotsGrid.innerHTML = `
         <div style="grid-column: 1 / -1; text-align: center; padding: var(--space-6); color: var(--text-muted);">
@@ -375,37 +476,13 @@ export async function init(container, state, actions) {
         </div>
       `;
       if (typeof lucide !== 'undefined') lucide.createIcons({ node: timeSlotsGrid });
-    } else {
-      timeSlotsGrid.innerHTML = slots.map(time => {
-        const isSelected = state.selectedTimeSlot === time;
-        return `
-          <button class="time-slot-btn ${isSelected ? 'selected' : ''}" data-time="${time}">
-            ${time}
-          </button>
-        `;
-      }).join('');
-    }
-
-    // Enlazar horas
-    timeSlotsGrid.querySelectorAll('.time-slot-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        state.selectedTimeSlot = btn.getAttribute('data-time');
-        timeSlotsGrid.querySelectorAll('.time-slot-btn').forEach(b => b.classList.remove('selected'));
-        btn.classList.add('selected');
-
-        const nextBtn = document.getElementById('btn-next-step-2');
-        if (nextBtn) nextBtn.removeAttribute('disabled');
-      });
-    });
-
-    const nextBtn = document.getElementById('btn-next-step-2');
-    if (nextBtn) {
-      if (slots.includes(state.selectedTimeSlot)) {
-        nextBtn.removeAttribute('disabled');
-      } else {
+      const nextBtn = document.getElementById('btn-next-step-2');
+      if (nextBtn) {
         state.selectedTimeSlot = null;
         nextBtn.setAttribute('disabled', 'true');
       }
+    } else {
+      renderSlotWheel(slots, nowSlotTime, state.selectedTimeSlot);
     }
   };
 

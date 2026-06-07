@@ -458,7 +458,8 @@ body {
   border-bottom: none;
 }
 
-.autocomplete-item:hover {
+.autocomplete-item:hover,
+.autocomplete-item.active {
   background-color: var(--bg-card-hover);
 }
 
@@ -668,5 +669,181 @@ body {
   font-size: var(--text-sm);
   max-width: 320px;
   margin: 0;
+}
+
+/* Indicador visual de estado de cita en las cards (el posicionamiento absoluto de calendar.css ya sirve como contexto para el dot) */
+
+.apt-status-dot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: block;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.2);
+  z-index: 5;
+}
+
+.agenda-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-6);
+  margin-bottom: 0;
+  padding-top: 10px;
+  padding-bottom: 12px;
+  flex-shrink: 0;
+  max-height: 250px; /* Altura máxima aproximada de las tarjetas para transición suave */
+  opacity: 1;
+  overflow: hidden;
+  transition: max-height 300ms cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 300ms cubic-bezier(0.4, 0, 0.2, 1),
+              gap 300ms cubic-bezier(0.4, 0, 0.2, 1),
+              padding-top 300ms cubic-bezier(0.4, 0, 0.2, 1),
+              padding-bottom 300ms cubic-bezier(0.4, 0, 0.2, 1),
+              margin-bottom 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.agenda-metrics.collapsed {
+  max-height: 0;
+  opacity: 0;
+  gap: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  margin-bottom: calc(-1 * (var(--space-6) + var(--space-4))); /* Cancelar gap del flex y margin-top del calendario */
+  pointer-events: none;
+}
+
+#btn-toggle-metrics i,
+#btn-toggle-metrics svg {
+  transition: transform 200ms ease;
+}
+
+#btn-toggle-metrics.collapsed i,
+#btn-toggle-metrics.collapsed svg {
+  transform: rotate(180deg);
+}
+
+.metric-card {
+  background: radial-gradient(circle at 100% 0%, var(--card-glow-color, rgba(139, 92, 255, 0.12)) 0%, transparent 55%), var(--bg-card);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 160px;
+  position: relative;
+  overflow: hidden;
+  transition: transform var(--transition-base), box-shadow var(--transition-base), border-color var(--transition-base);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  box-sizing: border-box;
+}
+
+.metric-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--card-accent, var(--color-primary));
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08), 0 0 12px var(--card-glow-color, rgba(139, 92, 255, 0.08));
+}
+
+.metric-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-3);
+  z-index: 2;
+}
+
+.metric-card-icon-wrapper {
+  width: 42px;
+  height: 42px;
+  border-radius: var(--radius-sm);
+  background: var(--card-accent-bg, rgba(139, 92, 255, 0.08));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--card-accent, var(--color-primary));
+  border: 1px solid var(--card-accent-border, rgba(139, 92, 255, 0.15));
+  transition: transform var(--transition-base);
+  box-sizing: border-box;
+}
+
+.metric-card:hover .metric-card-icon-wrapper {
+  transform: scale(1.05);
+}
+
+.metric-card-icon-wrapper i {
+  width: 20px;
+  height: 20px;
+  stroke-width: 2.2px;
+}
+
+.metric-card-sparkles {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  pointer-events: none;
+  opacity: 0.7;
+  transition: transform var(--transition-base), opacity var(--transition-base);
+  z-index: 1;
+}
+
+.metric-card:hover .metric-card-sparkles {
+  transform: scale(1.1) rotate(5deg);
+  opacity: 0.95;
+}
+
+.metric-card-content {
+  display: flex;
+  flex-direction: column;
+  z-index: 2;
+}
+
+.metric-card-title {
+  font-size: var(--text-xs);
+  font-weight: 800;
+  color: var(--card-accent, var(--color-primary));
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: var(--space-1);
+}
+
+.metric-card-number {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.metric-card-subtext {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: var(--space-2);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  z-index: 2;
+}
+
+.metric-badge {
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+@media (max-width: 1200px) {
+  .agenda-metrics {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 576px) {
+  .agenda-metrics {
+    grid-template-columns: 1fr;
+  }
 }
 

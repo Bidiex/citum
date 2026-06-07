@@ -3,22 +3,6 @@ import { showToast } from '../utils/toast.js';
 import { getColombiaTodayStr, getColombiaTimeParts } from '../utils/format.js';
 import { searchClientsByName, getActiveBusinessId, getServices, fetchProfessionals, getBusinessSchedules, getBusinessHolidays } from '../utils/businessState.js';
 
-const TIME_SLOTS = [
-  '08:00 AM', '08:30 AM', '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM',
-  '11:00 AM', '11:30 AM', '12:00 PM', '12:30 PM', '01:00 PM', '01:30 PM',
-  '02:00 PM', '02:30 PM', '03:00 PM', '03:30 PM', '04:00 PM', '04:30 PM',
-  '05:00 PM', '05:30 PM', '06:00 PM', '06:30 PM', '07:00 PM', '07:30 PM',
-  '08:00 PM'
-];
-
-function parseTimeString(timeStr) {
-  const [time, modifier] = timeStr.split(' ');
-  let [hours, minutes] = time.split(':').map(Number);
-  if (modifier === 'PM' && hours < 12) hours += 12;
-  if (modifier === 'AM' && hours === 12) hours = 0;
-  return hours * 60 + minutes;
-}
-
 function formatTimeString(minutesSinceMidnight) {
   let hours = Math.floor(minutesSinceMidnight / 60);
   const minutes = minutesSinceMidnight % 60;
@@ -28,6 +12,19 @@ function formatTimeString(minutesSinceMidnight) {
   if (hours === 0) hours = 12;
   
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')} ${period}`;
+}
+
+const TIME_SLOTS = [];
+for (let min = 8 * 60; min <= 20 * 60; min += 10) {
+  TIME_SLOTS.push(formatTimeString(min));
+}
+
+function parseTimeString(timeStr) {
+  const [time, modifier] = timeStr.split(' ');
+  let [hours, minutes] = time.split(':').map(Number);
+  if (modifier === 'PM' && hours < 12) hours += 12;
+  if (modifier === 'AM' && hours === 12) hours = 0;
+  return hours * 60 + minutes;
 }
 
 export async function openAppointmentModal({ appointments = [], onSave = null, mode = 'create', appointmentData = null } = {}) {
@@ -67,6 +64,7 @@ export async function openAppointmentModal({ appointments = [], onSave = null, m
   let isNextFreeMode = true;
   let selectedTimeSlot = '';
   let serviceNames = [];
+  let isManualTimeMode = false;
 
   if (mode === 'edit' && appointmentData) {
     isNextFreeMode = false; // Edición suele fijar un profesional asignado
@@ -120,14 +118,14 @@ export async function openAppointmentModal({ appointments = [], onSave = null, m
         <!-- ✂️ SERVICIOS -->
         <div class="apt-modal-section">
           <div class="apt-modal-section-title">
-            <i data-lucide="scissors" size="14"></i>
+            <i data-lucide="briefcase" size="14"></i>
             Catálogo de Servicios
           </div>
           <div class="apt-services-grid" id="apt-services-list">
             ${SERVICES.map((srv, index) => {
               const isSelected = serviceNames.includes(srv.name);
               return `
-                <div class="apt-service-item${isSelected ? ' selected' : ''}" data-index="${index}" data-name="${srv.name}" data-price="${srv.price}" data-duration="${srv.duration}">
+                <div class="apt-service-item${isSelected ? ' selected' : ''}" data-index="${index}" data-name="${srv.name}" data-price="${srv.price}" data-duration="${srv.duration}" tabindex="0">
                   <div class="apt-service-left">
                     <div class="apt-service-checkbox">
                       <i data-lucide="check" size="12"></i>
@@ -196,9 +194,15 @@ export async function openAppointmentModal({ appointments = [], onSave = null, m
           </div>
 
           <div class="form-group">
-            <label style="font-size: var(--text-sm); font-weight: 700; color: var(--text-primary); display: block;">
-              Horarios Disponibles (bloques de 30 min)
-            </label>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-2);">
+              <label style="font-size: var(--text-sm); font-weight: 700; color: var(--text-primary); display: block; margin: 0;">
+                Horarios Disponibles
+              </label>
+              <button type="button" id="btn-toggle-timepicker" class="apt-quick-btn">
+                🕐 Hora manual
+              </button>
+            </div>
+            <input type="time" id="manual-time-input" style="display: none; width: 100%; padding: var(--space-3); background: var(--bg-primary); border: 1px solid var(--border-soft); border-radius: var(--radius-sm); color: var(--text-primary); font-size: var(--text-base); font-family: var(--font-body); margin-bottom: var(--space-3);">
             <div class="time-chip-row" id="time-chips-container">
               <!-- Chips se renderizan por JS -->
             </div>
@@ -251,6 +255,8 @@ export async function openAppointmentModal({ appointments = [], onSave = null, m
   const manualToggle = root.querySelector('#btn-manual-toggle');
   const profHintText = root.querySelector('#prof-hint-text');
   const timeChipsContainer = root.querySelector('#time-chips-container');
+  const btnToggleTimepicker = root.querySelector('#btn-toggle-timepicker');
+  const manualTimeInput = root.querySelector('#manual-time-input');
   const notesInput = root.querySelector('#apt-notes');
   const servicesList = root.querySelector('#apt-services-list');
   const summaryCount = root.querySelector('#summary-count');
@@ -260,23 +266,32 @@ export async function openAppointmentModal({ appointments = [], onSave = null, m
   // Configuración de autocompletado para Clientes
   const setupAutocomplete = (inputEl) => {
     let dropdown = null;
+    let currentQuery = '';
+    let activeIndex = -1;
 
     const closeDropdown = () => {
       if (dropdown) {
         dropdown.remove();
         dropdown = null;
+        activeIndex = -1;
       }
     };
 
     inputEl.addEventListener('input', (e) => {
       const query = e.target.value.trim();
+      currentQuery = query;
       closeDropdown();
       if (!query || query.length < 2) return;
 
       const bizId = getActiveBusinessId();
       searchClientsByName(query, bizId).then(matches => {
+        if (query !== currentQuery) return;
+
+        closeDropdown();
+
         if (!matches || matches.length === 0) return;
 
+        activeIndex = -1;
         dropdown = document.createElement('div');
         dropdown.className = 'autocomplete-dropdown';
         
@@ -295,43 +310,59 @@ export async function openAppointmentModal({ appointments = [], onSave = null, m
             nameInput.value = item.getAttribute('data-name');
             phoneInput.value = item.getAttribute('data-phone');
             emailInput.value = item.getAttribute('data-email');
-            
-            // Disparar evento input
-            nameInput.dispatchEvent(new Event('input'));
-            phoneInput.dispatchEvent(new Event('input'));
-            emailInput.dispatchEvent(new Event('input'));
-
             closeDropdown();
           });
         });
       });
-      dropdown.className = 'autocomplete-dropdown';
-      
-      dropdown.innerHTML = matches.map(c => `
-        <div class="autocomplete-item" data-name="${c.name}" data-phone="${c.phone}" data-email="${c.email || ''}">
-          <span class="autocomplete-item-name">${c.name}</span>
-          <span class="autocomplete-item-phone">${c.phone}</span>
-        </div>
-      `).join('');
-
-      inputEl.parentNode.appendChild(dropdown);
-
-      // Vincular eventos de click a los items
-      dropdown.querySelectorAll('.autocomplete-item').forEach(item => {
-        item.addEventListener('click', () => {
-          nameInput.value = item.getAttribute('data-name');
-          phoneInput.value = item.getAttribute('data-phone');
-          emailInput.value = item.getAttribute('data-email');
-          
-          // Disparar evento input
-          nameInput.dispatchEvent(new Event('input'));
-          phoneInput.dispatchEvent(new Event('input'));
-          emailInput.dispatchEvent(new Event('input'));
-
-          closeDropdown();
-        });
-      });
     });
+
+    // Cerrar al perder foco (ej. navegación con Tab)
+    inputEl.addEventListener('blur', () => {
+      setTimeout(closeDropdown, 200);
+    });
+
+    // Cerrar al presionar Escape o Tab de forma inmediata, y navegar con ArrowDown/ArrowUp/Enter
+    inputEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' || e.key === 'Tab') {
+        closeDropdown();
+        return;
+      }
+
+      if (!dropdown) return;
+
+      const items = dropdown.querySelectorAll('.autocomplete-item');
+      if (items.length === 0) return;
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        activeIndex = (activeIndex + 1) % items.length;
+        updateActiveSuggestion(items);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        activeIndex = (activeIndex - 1 + items.length) % items.length;
+        updateActiveSuggestion(items);
+      } else if (e.key === 'Enter') {
+        if (activeIndex >= 0 && activeIndex < items.length) {
+          e.preventDefault();
+          const activeItem = items[activeIndex];
+          nameInput.value = activeItem.getAttribute('data-name');
+          phoneInput.value = activeItem.getAttribute('data-phone');
+          emailInput.value = activeItem.getAttribute('data-email');
+          closeDropdown();
+        }
+      }
+    });
+
+    const updateActiveSuggestion = (items) => {
+      items.forEach((item, index) => {
+        if (index === activeIndex) {
+          item.classList.add('active');
+          item.scrollIntoView({ block: 'nearest' });
+        } else {
+          item.classList.remove('active');
+        }
+      });
+    };
 
     // Cerrar si se hace click en otro lugar
     document.addEventListener('click', (e) => {
@@ -411,6 +442,13 @@ export async function openAppointmentModal({ appointments = [], onSave = null, m
     return { start, end: start + duration };
   }
 
+  // Helper: Convertir 'HH:MM:SS' o 'HH:MM' a minutos desde medianoche
+  function parseTimeToMinutes(tStr) {
+    if (!tStr) return 0;
+    const [h, m] = tStr.split(':').map(Number);
+    return h * 60 + m;
+  }
+
   // Helper: Comprobar solapamiento
   function checkOverlap(profId, slotStart, duration, dateVal) {
     return appointments.some(apt => {
@@ -421,6 +459,35 @@ export async function openAppointmentModal({ appointments = [], onSave = null, m
       const range = getAppointmentTimeRange(apt);
       return slotStart < range.end && (slotStart + duration) > range.start;
     });
+  }
+
+  // Helper: Comprobar disponibilidad completa del profesional (horario, descansos y citas)
+  function isProfAvailableForSlot(prof, slotStart, totalDuration, dateVal) {
+    const dateObj = new Date(dateVal + 'T00:00:00');
+    const dow = dateObj.getDay();
+
+    // 1. Verificar que el profesional trabaja ese día
+    const profSched = prof.schedules?.find(s => s.day_of_week === dow);
+    if (!profSched || !profSched.is_available) return false;
+
+    // 2. Verificar que el slot cae dentro de su horario
+    const profStart = parseTimeToMinutes(profSched.start_time);
+    const profEnd = parseTimeToMinutes(profSched.end_time);
+    if (slotStart < profStart || slotStart + totalDuration > profEnd) return false;
+
+    // 3. Verificar que no cae en un break
+    const breaks = prof.breaks?.filter(b => b.day_of_week === dow) || [];
+    const inBreak = breaks.some(b => {
+      const bStart = parseTimeToMinutes(b.start_time);
+      const bEnd = parseTimeToMinutes(b.end_time);
+      return slotStart < bEnd && (slotStart + totalDuration) > bStart;
+    });
+    if (inBreak) return false;
+
+    // 4. Verificar que no tiene cita en ese horario
+    if (checkOverlap(prof.id, slotStart, totalDuration, dateVal)) return false;
+
+    return true;
   }
 
   // Renderizar chips de hora dinámicamente
@@ -439,20 +506,97 @@ export async function openAppointmentModal({ appointments = [], onSave = null, m
     const bizSched = bizSchedules.find(s => s.day_of_week === dow);
     const isBizClosed = bizSched ? !bizSched.is_open : false;
 
-    // Obtener los minutos desde medianoche de la jornada comercial
-    const parseTimeToMinutes = (tStr) => {
-      const [h, m] = tStr.split(':').map(Number);
-      return h * 60 + m;
-    };
     const bizStartMin = bizSched ? parseTimeToMinutes(bizSched.start_time) : 8 * 60; // 8:00 AM por defecto
     const bizEndMin = bizSched ? parseTimeToMinutes(bizSched.end_time) : 20 * 60;   // 8:00 PM por defecto
 
+    // Si está en modo "próximo libre" (isNextFreeMode), no filtrar por profesional específico
+    let profStartMin = bizStartMin;
+    let profEndMin = bizEndMin;
+    let profBreaks = [];
+    let isProfUnavailable = false;
+
+    if (!isNextFreeMode && profName) {
+      const selectedProf = professionals.find(p => p.id === profName);
+      if (selectedProf) {
+        const profSched = selectedProf.schedules?.find(s => s.day_of_week === dow);
+        if (profSched) {
+          if (!profSched.is_available) {
+            // Profesional no trabaja este día — deshabilitar todos los slots
+            profStartMin = 0;
+            profEndMin = 0;
+            isProfUnavailable = true;
+          } else {
+            profStartMin = parseTimeToMinutes(profSched.start_time);
+            profEndMin = parseTimeToMinutes(profSched.end_time);
+          }
+        }
+        profBreaks = selectedProf.breaks?.filter(b => b.day_of_week === dow) || [];
+      }
+    }
+
+    // Chip especial "Ahora" si la fecha es hoy
+    if (dateVal === todayStr) {
+      const nowTimeParts = getColombiaTimeParts();
+      let nowMinutes = nowTimeParts.hours * 60 + nowTimeParts.minutes;
+      // Redondear hacia arriba al próximo múltiplo de 10 minutos
+      nowMinutes = Math.floor(nowMinutes / 10) * 10 + 10;
+
+      const nowSlot = formatTimeString(nowMinutes);
+      const slotStart = nowMinutes;
+      const isOccupied = isNextFreeMode
+        ? !professionals.some(p => isProfAvailableForSlot(p, slotStart, totalDuration, dateVal))
+        : checkOverlap(profName, slotStart, totalDuration, dateVal);
+      const isPastClose = slotStart + totalDuration > bizEndMin;
+      const isBeforeOpen = slotStart < bizStartMin;
+
+      const isBeforeProfOpen = slotStart < profStartMin;
+      const isAfterProfClose = slotStart + totalDuration > profEndMin;
+      const isInProfBreak = profBreaks.some(b => {
+        const breakStart = parseTimeToMinutes(b.start_time);
+        const breakEnd = parseTimeToMinutes(b.end_time);
+        return slotStart < breakEnd && (slotStart + totalDuration) > breakStart;
+      });
+
+      const disabled = isOccupied || isPastClose || isBeforeOpen || isHoliday || isBizClosed
+        || isBeforeProfOpen || isAfterProfClose || isInProfBreak;
+
+      if (!disabled) {
+        const chip = document.createElement('div');
+        chip.className = `time-chip${selectedTimeSlot === nowSlot ? ' selected' : ''}`;
+        chip.textContent = `Ahora (${nowSlot})`;
+        chip.tabIndex = 0;
+        chip.addEventListener('click', () => {
+          root.querySelectorAll('.time-chip').forEach(c => c.classList.remove('selected'));
+          chip.classList.add('selected');
+          selectedTimeSlot = nowSlot;
+          updateAvailabilityHint();
+        });
+        chip.addEventListener('keydown', (e) => {
+          if (e.key === ' ' || e.key === 'Enter') {
+            e.preventDefault();
+            chip.click();
+          }
+        });
+        timeChipsContainer.appendChild(chip);
+      }
+    }
+
     TIME_SLOTS.forEach(slot => {
       const slotStart = parseTimeString(slot);
-      const isOccupied = !isNextFreeMode && checkOverlap(profName, slotStart, totalDuration, dateVal);
+      const isOccupied = isNextFreeMode
+        ? !professionals.some(p => isProfAvailableForSlot(p, slotStart, totalDuration, dateVal))
+        : checkOverlap(profName, slotStart, totalDuration, dateVal);
       const isPastClose = slotStart + totalDuration > bizEndMin; 
       const isBeforeOpen = slotStart < bizStartMin;
       
+      const isBeforeProfOpen = slotStart < profStartMin;
+      const isAfterProfClose = slotStart + totalDuration > profEndMin;
+      const isInProfBreak = profBreaks.some(b => {
+        const breakStart = parseTimeToMinutes(b.start_time);
+        const breakEnd = parseTimeToMinutes(b.end_time);
+        return slotStart < breakEnd && (slotStart + totalDuration) > breakStart;
+      });
+
       // Check if slot is in the past
       let isPastTime = false;
       if (dateVal === todayStr) {
@@ -465,18 +609,26 @@ export async function openAppointmentModal({ appointments = [], onSave = null, m
         isPastTime = true;
       }
 
-      const disabled = isOccupied || isPastClose || isBeforeOpen || isPastTime || isHoliday || isBizClosed;
+      const disabled = isOccupied || isPastClose || isBeforeOpen || isPastTime || isHoliday || isBizClosed
+        || isBeforeProfOpen || isAfterProfClose || isInProfBreak;
 
       const chip = document.createElement('div');
       chip.className = `time-chip${selectedTimeSlot === slot ? ' selected' : ''}${disabled ? ' disabled' : ''}`;
       chip.textContent = slot;
 
       if (!disabled) {
+        chip.tabIndex = 0;
         chip.addEventListener('click', () => {
           root.querySelectorAll('.time-chip').forEach(c => c.classList.remove('selected'));
           chip.classList.add('selected');
           selectedTimeSlot = slot;
           updateAvailabilityHint();
+        });
+        chip.addEventListener('keydown', (e) => {
+          if (e.key === ' ' || e.key === 'Enter') {
+            e.preventDefault();
+            chip.click();
+          }
         });
       }
 
@@ -491,6 +643,10 @@ export async function openAppointmentModal({ appointments = [], onSave = null, m
         hintBox.classList.add('warning-hint');
       } else if (isBizClosed) {
         profHintText.textContent = '⚠️ El negocio no abre los días seleccionados en su horario semanal.';
+        hintBox.classList.add('warning-hint');
+      } else if (isProfUnavailable) {
+        const selectedProf = professionals.find(p => p.id === profName);
+        profHintText.textContent = `⚠️ ${selectedProf?.name || 'El profesional'} no tiene horario disponible para la fecha seleccionada.`;
         hintBox.classList.add('warning-hint');
       } else {
         hintBox.classList.remove('warning-hint');
@@ -510,7 +666,7 @@ export async function openAppointmentModal({ appointments = [], onSave = null, m
         let bestEndTime = Infinity;
 
         for (const prof of professionals) {
-          const isBusy = checkOverlap(prof.id, slotStart, totalDuration, dateVal);
+          const isBusy = !isProfAvailableForSlot(prof, slotStart, totalDuration, dateVal);
           if (!isBusy) {
             assignedProf = prof;
             break;
@@ -525,7 +681,7 @@ export async function openAppointmentModal({ appointments = [], onSave = null, m
 
         if (assignedProf) {
           profSelect.value = assignedProf.id;
-          const isBusy = checkOverlap(assignedProf.id, slotStart, totalDuration, dateVal);
+          const isBusy = !isProfAvailableForSlot(assignedProf, slotStart, totalDuration, dateVal);
           if (!isBusy) {
             profHintText.textContent = `✨ ${assignedProf.name} está libre en este horario.`;
           } else {
@@ -544,7 +700,7 @@ export async function openAppointmentModal({ appointments = [], onSave = null, m
       const profName = prof ? prof.name : '';
       if (selectedTimeSlot && profId) {
         const slotStart = parseTimeString(selectedTimeSlot);
-        const isBusy = checkOverlap(profId, slotStart, totalDuration, dateVal);
+        const isBusy = !isProfAvailableForSlot(prof, slotStart, totalDuration, dateVal);
         if (isBusy) {
           const nextFree = getEarliestFreeAfter(slotStart, profId, dateVal);
           profHintText.textContent = `⚠️ ${profName} está ocupado en ese bloque. Disponible a las ${formatTimeString(nextFree)}.`;
@@ -642,6 +798,17 @@ export async function openAppointmentModal({ appointments = [], onSave = null, m
     }
   });
 
+  // Manejo de teclado en cards de servicios (navegabilidad Space/Enter)
+  servicesList.addEventListener('keydown', (e) => {
+    if (e.key === ' ' || e.key === 'Enter') {
+      e.preventDefault();
+      const item = e.target.closest('.apt-service-item');
+      if (item) {
+        item.click();
+      }
+    }
+  });
+
   // Ataques rápidos / Shortcuts
   // 1. Botón "Hoy"
   root.querySelector('#btn-quick-today').addEventListener('click', () => {
@@ -655,33 +822,17 @@ export async function openAppointmentModal({ appointments = [], onSave = null, m
   root.querySelector('#btn-quick-now').addEventListener('click', () => {
     dateInput.value = todayStr;
     const { hours, minutes } = getColombiaTimeParts();
-
-    // Redondear al chip más cercano (bloques de 30)
-    if (minutes < 15) {
-      minutes = 0;
-    } else if (minutes < 45) {
-      minutes = 30;
-    } else {
-      minutes = 0;
-      hours += 1;
-    }
-
-    // Limitar entre 8 AM y 8 PM
-    if (hours < 8) {
-      hours = 8;
-      minutes = 0;
-    } else if (hours >= 20 && minutes > 0) {
-      hours = 20;
-      minutes = 0;
-    }
-
-    const period = hours >= 12 ? 'PM' : 'AM';
-    let displayHour = hours;
-    if (hours > 12) displayHour -= 12;
-    if (hours === 0) displayHour = 12;
-
-    const slotStr = `${String(displayHour).padStart(2, '0')}:${String(minutes).padStart(2, '0')} ${period}`;
+    let nowMinutes = hours * 60 + minutes;
+    // Redondear hacia arriba al próximo múltiplo de 10 minutos
+    nowMinutes = Math.floor(nowMinutes / 10) * 10 + 10;
+    const slotStr = formatTimeString(nowMinutes);
     selectedTimeSlot = slotStr;
+
+    if (isManualTimeMode) {
+      const displayHours = Math.floor(nowMinutes / 60) % 24;
+      const displayMins = nowMinutes % 60;
+      manualTimeInput.value = `${String(displayHours).padStart(2, '0')}:${String(displayMins).padStart(2, '0')}`;
+    }
 
     // Actualizar ui
     renderTimeChips();
@@ -694,6 +845,39 @@ export async function openAppointmentModal({ appointments = [], onSave = null, m
         selectedChip.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
       }
     }, 50);
+  });
+
+  // Lógica del modo de hora manual
+  btnToggleTimepicker.addEventListener('click', () => {
+    isManualTimeMode = !isManualTimeMode;
+    if (isManualTimeMode) {
+      timeChipsContainer.style.display = 'none';
+      manualTimeInput.style.display = 'block';
+      btnToggleTimepicker.textContent = '📋 Ver disponibilidad';
+      if (manualTimeInput.value) {
+        manualTimeInput.dispatchEvent(new Event('change'));
+      }
+    } else {
+      timeChipsContainer.style.display = '';
+      manualTimeInput.style.display = 'none';
+      btnToggleTimepicker.textContent = '🕐 Hora manual';
+      selectedTimeSlot = '';
+      root.querySelectorAll('.time-chip').forEach(c => c.classList.remove('selected'));
+      updateAvailabilityHint();
+    }
+  });
+
+  manualTimeInput.addEventListener('change', () => {
+    const val = manualTimeInput.value;
+    if (!val) {
+      selectedTimeSlot = '';
+      updateAvailabilityHint();
+      return;
+    }
+    const [h, m] = val.split(':').map(Number);
+    const minutesSinceMidnight = h * 60 + m;
+    selectedTimeSlot = formatTimeString(minutesSinceMidnight);
+    updateAvailabilityHint();
   });
 
   // Render inicial de chips de hora
@@ -789,10 +973,6 @@ export async function openAppointmentModal({ appointments = [], onSave = null, m
       hasError = true;
     } else if (selectedTimeSlot) {
       const slotStart = parseTimeString(selectedTimeSlot);
-      const parseTimeToMinutes = (tStr) => {
-        const [h, m] = tStr.split(':').map(Number);
-        return h * 60 + m;
-      };
       const bizStartMin = bizSched ? parseTimeToMinutes(bizSched.start_time) : 8 * 60;
       const bizEndMin = bizSched ? parseTimeToMinutes(bizSched.end_time) : 20 * 60;
       

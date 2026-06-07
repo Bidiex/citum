@@ -174,6 +174,22 @@ export async function init(container) {
   // Render inicial
   render();
 
+  // TODO (Deuda Técnica): Reemplazar este setTimeout (hack de timing para esperar que el módulo termine de renderizar)
+  // por un callback de inicialización limpio. Aceptable para MVP.
+  if (window.pendingInvoiceContext) {
+    const aptContext = window.pendingInvoiceContext;
+    window.pendingInvoiceContext = null;
+    setTimeout(() => {
+      openPosModal({
+        appointmentContext: aptContext,
+        onSave: async () => {
+          invoices = await getInvoices(businessId);
+          renderTableContent();
+        }
+      });
+    }, 100);
+  }
+
   // SUSCRIPCIÓN EN TIEMPO REAL
   const channelName = `invoices-changes-${businessId}`;
 

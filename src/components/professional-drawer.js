@@ -166,7 +166,7 @@ export function openProfessionalDrawer({ mode = 'create', professional = null, o
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4);">
             <div class="form-group">
               <label for="prof-role">Cargo / Especialidad *</label>
-              <input type="text" id="prof-role" class="form-input" placeholder="Ej. Barbero Senior" value="${roleVal}" required autocomplete="off" />
+              <input type="text" id="prof-role" class="form-input" placeholder="Ej. Especialista Senior" value="${roleVal}" required autocomplete="off" />
             </div>
             <div class="form-group">
               <label for="prof-phone">Teléfono de contacto *</label>
