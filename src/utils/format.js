@@ -110,6 +110,7 @@ export function parseColombiaToTimestamptz(dateStr, timeStr) {
 export const STATUS_COLORS = {
   pendiente:   'var(--color-warning)',
   confirmada:  'var(--color-primary)',
+  en_proceso:  '#8b5cf6', // purple
   completada:  'var(--color-success)',
   facturada:   '#22c55e', // mismo success pero con check icon
   cancelada:   'var(--color-danger)',

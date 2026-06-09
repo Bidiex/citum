@@ -461,10 +461,13 @@ export async function init(container, state, actions) {
       nowMinutes = Math.floor(nowMinutes / 10) * 10 + 10;
       nowSlotTime = formatTimeString(nowMinutes);
 
-      // Solo agregar si no está ya en los slots disponibles y no es duplicado
+      // Solo resaltar "Ahora" si la RPC lo retornó como disponible (no está ocupado).
+      // Si alreadyExists es true → el slot está libre → lo movemos al frente como slot por defecto.
+      // Si alreadyExists es false → el slot está ocupado o fuera de horario → no se muestra.
       const alreadyExists = slots.some(s => s === nowSlotTime);
-      if (!alreadyExists && slots.length > 0) {
-        slots = [nowSlotTime, ...slots];
+      if (alreadyExists) {
+        // Moverlo al frente para que sea la primera opción visible
+        slots = [nowSlotTime, ...slots.filter(s => s !== nowSlotTime)];
       }
     }
 
@@ -508,6 +511,18 @@ export async function init(container, state, actions) {
       await refreshSlots();
     });
   });
+
+  // Suscripción a cambios en tiempo real en citas
+  if (window.bookingRealtimeChannel) {
+    window.bookingRealtimeChannel.unsubscribe();
+  }
+  
+  window.bookingRealtimeChannel = supabase.channel('booking-slots-refresh')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, () => {
+      console.log('[Booking] Cambio en appointments detectado, recargando slots...');
+      refreshSlots();
+    })
+    .subscribe();
 
   // Cargar primera vez
   await refreshSlots();

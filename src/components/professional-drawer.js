@@ -1,6 +1,7 @@
 // professional-drawer.js — Componente Drawer para Registro/Edición de Profesionales y sus Horarios
 import { showToast } from '../utils/toast.js';
 import { showConfirm } from '../utils/confirm.js';
+import { getBusinessSchedules } from '../utils/businessState.js';
 
 const TIME_OPTIONS = [
   { value: '06:00:00', label: '06:00 AM' },
@@ -580,6 +581,8 @@ export function openProfessionalDrawer({ mode = 'create', professional = null, o
 
     // Validar Rango de Horarios para los Días Activos
     let scheduleValidationPassed = true;
+    const bizSchedules = getBusinessSchedules();
+    
     DAYS_OF_WEEK.forEach(day => {
       const state = scheduleState[day.id];
       if (state.isAvailable) {
@@ -597,6 +600,28 @@ export function openProfessionalDrawer({ mode = 'create', professional = null, o
             setTimeout(() => row.style.borderColor = 'var(--border-soft)', 3000);
           }
           scheduleValidationPassed = false;
+        }
+
+        // Validar contra horario del negocio
+        const bizDay = bizSchedules.find(s => s.day_of_week === day.id);
+        if (!bizDay || !bizDay.is_open) {
+          showToast({
+            title: `Negocio cerrado el ${day.name}`,
+            subtitle: 'No puedes asignar horario este día porque el negocio no abre.',
+            type: 'error'
+          });
+          scheduleValidationPassed = false;
+        } else {
+          const bizStartMin = timeToMinutes(bizDay.start_time);
+          const bizEndMin = timeToMinutes(bizDay.end_time);
+          if (startMin < bizStartMin || endMin > bizEndMin) {
+            showToast({
+              title: `Horario inválido el ${day.name}`,
+              subtitle: `El profesional no puede exceder el horario del negocio (${bizDay.start_time.substring(0,5)} a ${bizDay.end_time.substring(0,5)}).`,
+              type: 'error'
+            });
+            scheduleValidationPassed = false;
+          }
         }
       }
     });

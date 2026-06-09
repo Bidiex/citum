@@ -1,7 +1,8 @@
 // appointment-modal.js — Componente Modal de Nueva/Editar Cita para Recepcionistas
 import { showToast } from '../utils/toast.js';
-import { getColombiaTodayStr, getColombiaTimeParts } from '../utils/format.js';
+import { getColombiaTodayStr, getColombiaTimeParts, parseTimestamptzToColombia } from '../utils/format.js';
 import { searchClientsByName, getActiveBusinessId, getServices, fetchProfessionals, getBusinessSchedules, getBusinessHolidays } from '../utils/businessState.js';
+import { supabase } from '../core/supabase.js';
 
 function formatTimeString(minutesSinceMidnight) {
   let hours = Math.floor(minutesSinceMidnight / 60);
@@ -487,49 +488,95 @@ export async function openAppointmentModal({ appointments = [], onSave = null, m
     return true;
   }
 
-  // Renderizar chips de hora dinámicamente
-  function renderTimeChips() {
-    timeChipsContainer.innerHTML = '';
+  // Renderizar chips de hora — disponibilidad consultada en tiempo real desde la BD
+  async function renderTimeChips() {
+    // Mostrar indicador de carga
+    timeChipsContainer.innerHTML = `
+      <div style="padding:10px 0;color:var(--text-muted);font-size:13px;display:flex;align-items:center;gap:6px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+          style="animation:spin 1s linear infinite;flex-shrink:0;">
+          <path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+        Verificando disponibilidad...
+      </div>
+    `;
+
     const dateVal = dateInput.value;
     const profName = profSelect.value;
     const totalDuration = selectedServices.reduce((sum, s) => sum + s.duration, 0) || 30;
 
     // Verificar si la fecha seleccionada es un día feriado en el negocio
     const isHoliday = bizHolidays.some(h => h.date === dateVal);
-    
+
     // Verificar si el negocio abre este día de la semana
     const dateObj = new Date(dateVal + 'T00:00:00');
     const dow = dateObj.getDay();
     const bizSched = bizSchedules.find(s => s.day_of_week === dow);
     const isBizClosed = bizSched ? !bizSched.is_open : false;
 
-    const bizStartMin = bizSched ? parseTimeToMinutes(bizSched.start_time) : 8 * 60; // 8:00 AM por defecto
-    const bizEndMin = bizSched ? parseTimeToMinutes(bizSched.end_time) : 20 * 60;   // 8:00 PM por defecto
+    const bizStartMin = bizSched ? parseTimeToMinutes(bizSched.start_time) : 8 * 60;
+    const bizEndMin   = bizSched ? parseTimeToMinutes(bizSched.end_time)   : 20 * 60;
 
-    // Si está en modo "próximo libre" (isNextFreeMode), no filtrar por profesional específico
-    let profStartMin = bizStartMin;
-    let profEndMin = bizEndMin;
-    let profBreaks = [];
+    // Verificar si el profesional específico trabaja este día (para el hint)
     let isProfUnavailable = false;
-
     if (!isNextFreeMode && profName) {
       const selectedProf = professionals.find(p => p.id === profName);
       if (selectedProf) {
         const profSched = selectedProf.schedules?.find(s => s.day_of_week === dow);
-        if (profSched) {
-          if (!profSched.is_available) {
-            // Profesional no trabaja este día — deshabilitar todos los slots
-            profStartMin = 0;
-            profEndMin = 0;
-            isProfUnavailable = true;
-          } else {
-            profStartMin = parseTimeToMinutes(profSched.start_time);
-            profEndMin = parseTimeToMinutes(profSched.end_time);
-          }
+        if (!profSched || !profSched.is_available) {
+          isProfUnavailable = true;
         }
-        profBreaks = selectedProf.breaks?.filter(b => b.day_of_week === dow) || [];
       }
     }
+
+    // ── Consultar slots disponibles directamente en la BD (fuente de verdad) ──
+    // Esto evita que citas creadas desde el portal, otra pestaña o sesión simultánea
+    // no sean detectadas por el snapshot en memoria.
+    let availableSet = new Set();
+    if (!isHoliday && !isBizClosed && !isProfUnavailable) {
+      try {
+        if (!isNextFreeMode && profName) {
+          // Profesional específico
+          const { data, error } = await supabase.rpc('get_available_slots', {
+            p_professional_id: profName,
+            p_date: dateVal,
+            p_duration_min: totalDuration
+          });
+          if (!error && data) {
+            data.forEach(slot => {
+              const { time } = parseTimestamptzToColombia(slot.slot_start);
+              availableSet.add(time);
+            });
+          } else if (error) {
+            console.warn('[renderTimeChips] RPC error:', error.message);
+          }
+        } else {
+          // Modo "Próximo libre": unión de disponibilidad de todos los profesionales activos
+          const activeProfessionals = professionals.filter(p => p.active !== false);
+          const results = await Promise.all(
+            activeProfessionals.map(p =>
+              supabase.rpc('get_available_slots', {
+                p_professional_id: p.id,
+                p_date: dateVal,
+                p_duration_min: totalDuration
+              })
+            )
+          );
+          results.forEach(res => {
+            if (res.data) {
+              res.data.forEach(slot => {
+                const { time } = parseTimestamptzToColombia(slot.slot_start);
+                availableSet.add(time);
+              });
+            }
+          });
+        }
+      } catch (rpcErr) {
+        console.warn('[renderTimeChips] Error al consultar disponibilidad en BD:', rpcErr);
+      }
+    }
+    // ── Fin consulta RPC ──
+
+    timeChipsContainer.innerHTML = '';
 
     // Chip especial "Ahora" si la fecha es hoy
     if (dateVal === todayStr) {
@@ -539,25 +586,10 @@ export async function openAppointmentModal({ appointments = [], onSave = null, m
       nowMinutes = Math.floor(nowMinutes / 10) * 10 + 10;
 
       const nowSlot = formatTimeString(nowMinutes);
-      const slotStart = nowMinutes;
-      const isOccupied = isNextFreeMode
-        ? !professionals.some(p => isProfAvailableForSlot(p, slotStart, totalDuration, dateVal))
-        : checkOverlap(profName, slotStart, totalDuration, dateVal);
-      const isPastClose = slotStart + totalDuration > bizEndMin;
-      const isBeforeOpen = slotStart < bizStartMin;
+      const isWithinBizHours = nowMinutes >= bizStartMin && nowMinutes + totalDuration <= bizEndMin;
+      const isAvailableNow = availableSet.has(nowSlot);
 
-      const isBeforeProfOpen = slotStart < profStartMin;
-      const isAfterProfClose = slotStart + totalDuration > profEndMin;
-      const isInProfBreak = profBreaks.some(b => {
-        const breakStart = parseTimeToMinutes(b.start_time);
-        const breakEnd = parseTimeToMinutes(b.end_time);
-        return slotStart < breakEnd && (slotStart + totalDuration) > breakStart;
-      });
-
-      const disabled = isOccupied || isPastClose || isBeforeOpen || isHoliday || isBizClosed
-        || isBeforeProfOpen || isAfterProfClose || isInProfBreak;
-
-      if (!disabled) {
+      if (isAvailableNow && isWithinBizHours && !isHoliday && !isBizClosed && !isProfUnavailable) {
         const chip = document.createElement('div');
         chip.className = `time-chip${selectedTimeSlot === nowSlot ? ' selected' : ''}`;
         chip.textContent = `Ahora (${nowSlot})`;
@@ -578,41 +610,24 @@ export async function openAppointmentModal({ appointments = [], onSave = null, m
       }
     }
 
-    // Generar slots dinámicamente desde la hora de apertura hasta la de cierre del negocio
-    const dynamicSlots = [];
+    // Generar todos los slots del día (bizStartMin → bizEndMin) y marcar disponibilidad
     for (let min = bizStartMin; min <= bizEndMin; min += 10) {
-      dynamicSlots.push(formatTimeString(min));
-    }
-    dynamicSlots.forEach(slot => {
-      const slotStart = parseTimeString(slot);
-      const isOccupied = isNextFreeMode
-        ? !professionals.some(p => isProfAvailableForSlot(p, slotStart, totalDuration, dateVal))
-        : checkOverlap(profName, slotStart, totalDuration, dateVal);
-      const isPastClose = slotStart + totalDuration > bizEndMin; 
-      const isBeforeOpen = slotStart < bizStartMin;
-      
-      const isBeforeProfOpen = slotStart < profStartMin;
-      const isAfterProfClose = slotStart + totalDuration > profEndMin;
-      const isInProfBreak = profBreaks.some(b => {
-        const breakStart = parseTimeToMinutes(b.start_time);
-        const breakEnd = parseTimeToMinutes(b.end_time);
-        return slotStart < breakEnd && (slotStart + totalDuration) > breakStart;
-      });
+      const slot = formatTimeString(min);
+      const slotStart = min;
 
-      // Check if slot is in the past
+      // Slot ya pasó (solo relevante para hoy)
       let isPastTime = false;
       if (dateVal === todayStr) {
         const nowTimeParts = getColombiaTimeParts();
         const currentMinutes = nowTimeParts.hours * 60 + nowTimeParts.minutes;
-        if (slotStart < currentMinutes) {
-          isPastTime = true;
-        }
+        if (slotStart < currentMinutes) isPastTime = true;
       } else if (dateVal < todayStr) {
         isPastTime = true;
       }
 
-      const disabled = isOccupied || isPastClose || isBeforeOpen || isPastTime || isHoliday || isBizClosed
-        || isBeforeProfOpen || isAfterProfClose || isInProfBreak;
+      // Disponible según la BD, y no es pasado/feriado/cerrado
+      const isAvailable = availableSet.has(slot);
+      const disabled = !isAvailable || isPastTime || isHoliday || isBizClosed || isProfUnavailable;
 
       const chip = document.createElement('div');
       chip.className = `time-chip${selectedTimeSlot === slot ? ' selected' : ''}${disabled ? ' disabled' : ''}`;
@@ -635,9 +650,9 @@ export async function openAppointmentModal({ appointments = [], onSave = null, m
       }
 
       timeChipsContainer.appendChild(chip);
-    });
+    }
 
-    // Mostrar aviso si es feriado o está cerrado el negocio
+    // Mostrar aviso si es feriado, cerrado o profesional sin horario
     const hintBox = root.querySelector('#prof-hint-box');
     if (hintBox) {
       if (isHoliday) {
@@ -744,40 +759,40 @@ export async function openAppointmentModal({ appointments = [], onSave = null, m
   }
 
   // Cambiar de modo de profesional
-  nextFreeToggle.addEventListener('click', () => {
+  nextFreeToggle.addEventListener('click', async () => {
     isNextFreeMode = true;
     nextFreeToggle.classList.add('active');
     manualToggle.classList.remove('active');
     profSelect.disabled = true;
     updateAvailabilityHint();
-    renderTimeChips();
+    await renderTimeChips();
   });
 
-  manualToggle.addEventListener('click', () => {
+  manualToggle.addEventListener('click', async () => {
     isNextFreeMode = false;
     manualToggle.classList.add('active');
     nextFreeToggle.classList.remove('active');
     profSelect.disabled = false;
     updateAvailabilityHint();
-    renderTimeChips();
+    await renderTimeChips();
   });
 
-  profSelect.addEventListener('change', () => {
+  profSelect.addEventListener('change', async () => {
     updateAvailabilityHint();
-    renderTimeChips();
+    await renderTimeChips();
   });
 
-  dateInput.addEventListener('change', () => {
+  dateInput.addEventListener('change', async () => {
     if (dateInput.value < todayStr) {
       dateInput.value = todayStr;
     }
     selectedTimeSlot = '';
     updateAvailabilityHint();
-    renderTimeChips();
+    await renderTimeChips();
   });
 
   // Manejo de clicks en cards de servicios (multi-select)
-  servicesList.addEventListener('click', (e) => {
+  servicesList.addEventListener('click', async (e) => {
     const item = e.target.closest('.apt-service-item');
     if (item) {
       const srvIndex = parseInt(item.getAttribute('data-index'), 10);
@@ -795,7 +810,7 @@ export async function openAppointmentModal({ appointments = [], onSave = null, m
       updateServicesSummary();
 
       // Si cambia la duración, puede cambiar la disponibilidad de los slots
-      renderTimeChips();
+      await renderTimeChips();
       updateAvailabilityHint();
     }
   });
@@ -813,15 +828,15 @@ export async function openAppointmentModal({ appointments = [], onSave = null, m
 
   // Ataques rápidos / Shortcuts
   // 1. Botón "Hoy"
-  root.querySelector('#btn-quick-today').addEventListener('click', () => {
+  root.querySelector('#btn-quick-today').addEventListener('click', async () => {
     dateInput.value = todayStr;
     selectedTimeSlot = '';
     updateAvailabilityHint();
-    renderTimeChips();
+    await renderTimeChips();
   });
 
   // 2. Botón "Ahora mismo"
-  root.querySelector('#btn-quick-now').addEventListener('click', () => {
+  root.querySelector('#btn-quick-now').addEventListener('click', async () => {
     dateInput.value = todayStr;
     const { hours, minutes } = getColombiaTimeParts();
     let nowMinutes = hours * 60 + minutes;
@@ -837,7 +852,7 @@ export async function openAppointmentModal({ appointments = [], onSave = null, m
     }
 
     // Actualizar ui
-    renderTimeChips();
+    await renderTimeChips();
     updateAvailabilityHint();
 
     // Centrar scroll en el chip seleccionado
@@ -882,8 +897,8 @@ export async function openAppointmentModal({ appointments = [], onSave = null, m
     updateAvailabilityHint();
   });
 
-  // Render inicial de chips de hora
-  renderTimeChips();
+  // Render inicial de chips de hora (async — consulta la BD)
+  await renderTimeChips();
   updateAvailabilityHint();
 
   // Si editamos y ya hay un slot cargado, centrarlo

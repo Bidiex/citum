@@ -31,6 +31,12 @@ function getStatusBadgeStyle(status) {
         color: 'var(--accent-neon)',
         dot: 'var(--accent-neon)'
       };
+    case 'en_proceso':
+      return {
+        bg: 'rgba(139, 92, 255, 0.2)',
+        color: 'var(--accent-neon)',
+        dot: 'var(--accent-neon)'
+      };
     case 'completada':
       return {
         bg: 'rgba(16, 185, 129, 0.08)',
@@ -162,6 +168,7 @@ export async function openAptDetailModal({ apt, onEdit = null, onDelete = null, 
   const pipelineStates = [
     { key: 'pendiente', label: 'Pendiente' },
     { key: 'confirmada', label: 'Confirmada' },
+    { key: 'en_proceso', label: 'En Proceso' },
     { key: 'completada', label: 'Completada' },
     { key: 'facturada', label: 'Facturada' }
   ];
@@ -260,9 +267,9 @@ export async function openAptDetailModal({ apt, onEdit = null, onDelete = null, 
   } else if (apt.status === 'confirmada') {
     actionsHtml = `
       <div class="apt-modal-section" id="apt-actions-section" style="border-top: 1px solid var(--border-soft); padding-top: var(--space-4); display: flex; flex-direction: column; gap: var(--space-2.5);">
-        <button class="btn btn-primary" id="btn-action-complete" style="width: 100%; height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); font-weight: 700; background: var(--color-success); border-color: var(--color-success);">
-          <i data-lucide="check" size="14"></i>
-          Marcar como completada
+        <button class="btn btn-primary" id="btn-action-in-process" style="width: 100%; height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); font-weight: 700; background: var(--color-primary); border-color: var(--color-primary);">
+          <i data-lucide="play" size="14"></i>
+          Iniciar Atención (En Proceso)
         </button>
         <div style="display: flex; gap: var(--space-3); width: 100%;">
           <button class="btn btn-secondary" id="btn-action-no-show" style="flex: 1; height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); font-size: var(--text-sm); font-weight: 600; color: var(--text-secondary); border-color: var(--border-soft);">
@@ -272,6 +279,21 @@ export async function openAptDetailModal({ apt, onEdit = null, onDelete = null, 
           <button class="btn btn-secondary" id="btn-action-cancel" style="flex: 1; height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); font-size: var(--text-sm); font-weight: 600; color: var(--color-danger); border-color: rgba(239, 68, 68, 0.2); background: rgba(239, 68, 68, 0.01);">
             <i data-lucide="x" size="14"></i>
             Cancelar cita
+          </button>
+        </div>
+      </div>
+    `;
+  } else if (apt.status === 'en_proceso') {
+    actionsHtml = `
+      <div class="apt-modal-section" id="apt-actions-section" style="border-top: 1px solid var(--border-soft); padding-top: var(--space-4); display: flex; flex-direction: column; gap: var(--space-2.5);">
+        <button class="btn btn-primary" id="btn-action-complete" style="width: 100%; height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); font-weight: 700; background: var(--color-success); border-color: var(--color-success);">
+          <i data-lucide="check-circle" size="14"></i>
+          Marcar como completada
+        </button>
+        <div style="display: flex; gap: var(--space-3); width: 100%;">
+          <button class="btn btn-secondary" id="btn-action-cancel" style="flex: 1; height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); font-size: var(--text-sm); font-weight: 600; color: var(--color-danger); border-color: rgba(239, 68, 68, 0.2); background: rgba(239, 68, 68, 0.01);">
+            <i data-lucide="x" size="14"></i>
+            Cancelar cita (Incompleta)
           </button>
         </div>
       </div>
@@ -638,6 +660,10 @@ export async function openAptDetailModal({ apt, onEdit = null, onDelete = null, 
   const confirmBtn = root.querySelector('#btn-action-confirm');
   if (confirmBtn) {
     confirmBtn.addEventListener('click', () => transicionarEstado('confirmada'));
+  }
+  const inProcessBtn = root.querySelector('#btn-action-in-process');
+  if (inProcessBtn) {
+    inProcessBtn.addEventListener('click', () => transicionarEstado('en_proceso'));
   }
   const completeBtn = root.querySelector('#btn-action-complete');
   if (completeBtn) {

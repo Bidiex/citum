@@ -16,12 +16,16 @@ const SERVICE_DURATIONS = {
   'Afeitado de Barba Ritual': 30
 };
 
-// Horas del calendario (8:00 AM a 8:00 PM)
-const TIME_LABELS = [
-  '08:00 AM', '09:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '01:00 PM',
-  '02:00 PM', '03:00 PM', '04:00 PM', '05:00 PM', '06:00 PM', '07:00 PM',
-  '08:00 PM'
-];
+// Rango del calendario: 6:00 AM a 11:00 PM (cubre cualquier negocio sin importar su horario)
+const CAL_START_HOUR = 6;   // 6:00 AM
+const CAL_END_HOUR   = 23;  // 11:00 PM
+const CAL_START_MIN  = CAL_START_HOUR * 60; // 360 minutos desde medianoche
+const TIME_LABELS = [];
+for (let h = CAL_START_HOUR; h <= CAL_END_HOUR; h++) {
+  const period = h >= 12 ? 'PM' : 'AM';
+  const displayH = h > 12 ? h - 12 : (h === 0 ? 12 : h);
+  TIME_LABELS.push(`${String(displayH).padStart(2, '0')}:00 ${period}`);
+}
 
 
 
@@ -181,10 +185,10 @@ export function initCalendar({
       render();
     }
     
-    // Scroll suave a la hora actual (08:00 AM es 480 minutos)
+    // Scroll suave a la hora actual usando CAL_START_MIN como referencia
     const { hours, minutes } = getColombiaTimeParts();
     const currentMinutes = hours * 60 + minutes;
-    const scrollTo = Math.max(0, Math.min(720, currentMinutes - 480));
+    const scrollTo = Math.max(0, currentMinutes - CAL_START_MIN - 60);
     scrollArea.scrollTo({ top: scrollTo, behavior: 'smooth' });
   });
 
@@ -234,9 +238,9 @@ export function initCalendar({
 
     // 4. Centrar scroll vertical a las 9:00 AM la primera vez
     setTimeout(() => {
-      // 9:00 AM está a 60px de la parte superior (1 hora desde las 8:00 AM)
+      // 9:00 AM = 540 min. CAL_START_MIN = 360 (6AM). Diferencia = 180px.
       if (scrollArea.scrollTop === 0) {
-        scrollArea.scrollTop = 60;
+        scrollArea.scrollTop = 9 * 60 - CAL_START_MIN;
       }
     }, 50);
   }
@@ -372,8 +376,8 @@ export function initCalendar({
         }
         card.className = `cal-apt-card ${item.apt.status || 'confirmada'} ${viewMode === 'week' ? 'compact' : ''}`;
         
-        // 8:00 AM es 480 minutos. El alto de hora es 60px.
-        const top = item.start - 480;
+        // CAL_START_MIN marca el primer label visible. El alto de hora es 60px.
+        const top = item.start - CAL_START_MIN;
         const height = Math.max(item.end - item.start, 25); // mínimo 25px para legibilidad
         
         card.style.top = `${top}px`;
@@ -459,8 +463,8 @@ export function initCalendar({
     const { hours, minutes } = getColombiaTimeParts();
     const nowMins = hours * 60 + minutes;
 
-    // Si está fuera de horario (8 AM a 8 PM), no dibujar
-    if (nowMins < 480 || nowMins > 1200) return;
+    // Si está fuera del rango visible del calendario, no dibujar
+    if (nowMins < CAL_START_MIN || nowMins > CAL_END_HOUR * 60) return;
 
     if (currentView === 'day') {
       if (formatDateISO(currentDate) === todayStr) {
@@ -468,7 +472,7 @@ export function initCalendar({
         if (dayCol) {
           const line = document.createElement('div');
           line.className = 'cal-current-time-line';
-          line.style.top = `${nowMins - 480}px`;
+          line.style.top = `${nowMins - CAL_START_MIN}px`;
           dayCol.appendChild(line);
         }
       }
@@ -483,7 +487,7 @@ export function initCalendar({
         if (targetCol) {
           const line = document.createElement('div');
           line.className = 'cal-current-time-line';
-          line.style.top = `${nowMins - 480}px`;
+          line.style.top = `${nowMins - CAL_START_MIN}px`;
           targetCol.appendChild(line);
         }
       }
