@@ -96,6 +96,7 @@ function showCancellationReasonModal() {
     const modal = overlay.querySelector('.apt-modal');
     
     setTimeout(() => {
+      overlay.classList.add('open');
       overlay.style.opacity = '1';
       modal.style.transform = 'scale(1)';
       modal.style.opacity = '1';
@@ -103,6 +104,7 @@ function showCancellationReasonModal() {
     }, 10);
     
     const close = (result) => {
+      overlay.classList.remove('open');
       modal.style.transform = 'scale(0.95)';
       modal.style.opacity = '0';
       overlay.style.opacity = '0';

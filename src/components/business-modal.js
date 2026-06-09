@@ -102,7 +102,10 @@ export function openBusinessModal({ mode = 'create', businessData = null, onSave
   const phone = businessData?.phone || '';
   const address = businessData?.address || '';
   const selectedColor = businessData?.color || '#8B5CF6'; // Violeta por defecto
-  let logoBase64 = businessData?.logo || '';
+  let logoValue = businessData?.logo || businessData?.logo_url || '';
+  let coverValue = businessData?.cover || businessData?.cover_url || '';
+  let logoFile = null;
+  let coverFile = null;
   const business = businessData || {};
 
   // Crear contenedor principal
@@ -183,7 +186,7 @@ export function openBusinessModal({ mode = 'create', businessData = null, onSave
           <label>Imagen / Logo del negocio (opcional)</label>
           <div class="logo-upload-container">
             <div class="logo-preview-box" id="logo-preview">
-              ${logoBase64 ? `<img src="${logoBase64}" alt="Logo preview" />` : (name ? name.charAt(0).toUpperCase() : 'B')}
+              ${logoValue ? `<img src="${logoValue}" alt="Logo preview" />` : (name ? name.charAt(0).toUpperCase() : 'B')}
             </div>
             <div class="logo-upload-actions">
               <label class="logo-upload-btn">
@@ -192,6 +195,24 @@ export function openBusinessModal({ mode = 'create', businessData = null, onSave
                 <input type="file" id="logo-file-input" accept="image/*" style="display: none;" />
               </label>
               <span class="logo-upload-hint">Formatos PNG, JPG. Máx 2MB</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Imagen de Portada -->
+        <div class="form-group">
+          <label>Imagen de portada (opcional)</label>
+          <div class="cover-upload-container">
+            <div class="cover-preview-box" id="cover-preview">
+              ${coverValue ? `<img src="${coverValue}" alt="Cover preview" />` : '16:9'}
+            </div>
+            <div class="cover-upload-actions">
+              <label class="cover-upload-btn">
+                <i data-lucide="upload-cloud" size="14"></i>
+                Subir Portada
+                <input type="file" id="cover-file-input" accept="image/*" style="display: none;" />
+              </label>
+              <span class="cover-upload-hint">Formatos PNG, JPG. Máx 2MB</span>
             </div>
           </div>
         </div>
@@ -658,13 +679,13 @@ export function openBusinessModal({ mode = 'create', businessData = null, onSave
       slugText.textContent = currentSlug || '...';
       
       // Si no hay logo subido, actualizar la inicial en el preview
-      if (!logoBase64) {
+      if (!logoValue) {
         logoPreview.textContent = currentName ? currentName.charAt(0).toUpperCase() : 'B';
       }
     });
   }
 
-  // Manejo de archivo / imagen a Base64
+  // Manejo de archivo / imagen de Logo
   fileInput.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -672,12 +693,25 @@ export function openBusinessModal({ mode = 'create', businessData = null, onSave
         showToast({ title: 'Imagen muy grande', subtitle: 'La imagen no debe superar los 2MB', type: 'warning' });
         return;
       }
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        logoBase64 = event.target.result;
-        logoPreview.innerHTML = `<img src="${logoBase64}" alt="Logo preview" />`;
-      };
-      reader.readAsDataURL(file);
+      logoFile = file;
+      const objectUrl = URL.createObjectURL(file);
+      logoPreview.innerHTML = `<img src="${objectUrl}" alt="Logo preview" />`;
+    }
+  });
+
+  // Manejo de archivo de portada
+  const coverFileInput = root.querySelector('#cover-file-input');
+  const coverPreview = root.querySelector('#cover-preview');
+  coverFileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        showToast({ title: 'Imagen muy grande', subtitle: 'La imagen no debe superar los 2MB', type: 'warning' });
+        return;
+      }
+      coverFile = file;
+      const objectUrl = URL.createObjectURL(file);
+      coverPreview.innerHTML = `<img src="${objectUrl}" alt="Cover preview" />`;
     }
   });
 
@@ -765,27 +799,58 @@ export function openBusinessModal({ mode = 'create', businessData = null, onSave
       return;
     }
 
-    const payload = {
-      name: nameInput.value.trim(),
-      phone: phoneInput.value.trim(),
-      address: addressInput.value.trim(),
-      color: activeColor,
-      logo: logoBase64
-    };
-
-    if (mode === 'edit') {
-      const statusToggle = root.querySelector('#biz-status-toggle');
-      if (statusToggle) {
-        payload.paused = statusToggle.checked;
-      }
-      payload.alert_minutes_before = parseInt(document.getElementById('biz-alert-minutes')?.value) || 15;
-    }
-
     // Deshabilitar botón durante guardado
     saveBtn.disabled = true;
     saveBtn.textContent = 'Guardando...';
 
     try {
+      const businessId = businessData?.id || crypto.randomUUID();
+
+      // Obtener sesión activa para políticas RLS de Storage (Opción A)
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id;
+      if (!userId) throw new Error('No hay sesión activa para subir imágenes');
+
+      // Subir logo si hay archivo nuevo
+      if (logoFile) {
+        const ext = logoFile.name.split('.').pop();
+        const path = `${userId}/logos/${businessId}_${Date.now()}.${ext}`;
+        const { error: uploadError } = await supabase.storage
+          .from('business-logos')
+          .upload(path, logoFile, { upsert: true });
+        if (uploadError) throw uploadError;
+        logoValue = supabase.storage.from('business-logos').getPublicUrl(path).data.publicUrl;
+      }
+
+      // Subir cover si hay archivo nuevo
+      if (coverFile) {
+        const ext = coverFile.name.split('.').pop();
+        const path = `${userId}/covers/${businessId}_${Date.now()}.${ext}`;
+        const { error: uploadError } = await supabase.storage
+          .from('business-logos')
+          .upload(path, coverFile, { upsert: true });
+        if (uploadError) throw uploadError;
+        coverValue = supabase.storage.from('business-logos').getPublicUrl(path).data.publicUrl;
+      }
+
+      const payload = {
+        id: businessId,
+        name: nameInput.value.trim(),
+        phone: phoneInput.value.trim(),
+        address: addressInput.value.trim(),
+        color: activeColor,
+        logo: logoValue,
+        cover: coverValue
+      };
+
+      if (mode === 'edit') {
+        const statusToggle = root.querySelector('#biz-status-toggle');
+        if (statusToggle) {
+          payload.paused = statusToggle.checked;
+        }
+        payload.alert_minutes_before = parseInt(document.getElementById('biz-alert-minutes')?.value) || 15;
+      }
+
       if (mode === 'create') {
         const baseSlug = slugify(nameInput.value.trim());
         let finalSlug = baseSlug;

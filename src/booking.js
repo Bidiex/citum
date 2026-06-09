@@ -86,11 +86,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     const addressEl = document.getElementById('booking-biz-address');
     if (addressEl) addressEl.textContent = activeBiz.address || 'Sin dirección registrada';
 
+    // Portada (Cover)
+    const heroEl = document.getElementById('booking-hero');
+    if (heroEl) {
+      if (activeBiz.cover_url) {
+        heroEl.style.backgroundImage = `url("${activeBiz.cover_url}")`;
+      } else {
+        heroEl.style.backgroundImage = 'none';
+      }
+    }
+
     // Logo / Inicial
-    const logoEl = document.querySelector('.business-logo');
+    const logoEl = document.getElementById('booking-hero-logo');
     if (logoEl) {
-      if (activeBiz.logo) {
-        logoEl.innerHTML = `<img src="${activeBiz.logo}" alt="${activeBiz.name}" style="width: 100%; height: 100%; object-fit: cover;" />`;
+      if (activeBiz.logo_url) {
+        logoEl.innerHTML = `<img src="${activeBiz.logo_url}" alt="${activeBiz.name}" style="width: 100%; height: 100%; object-fit: cover;" />`;
       } else {
         logoEl.textContent = activeBiz.name.charAt(0).toUpperCase();
       }

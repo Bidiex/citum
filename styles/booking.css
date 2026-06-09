@@ -10,57 +10,56 @@
   color: var(--text-primary);
 }
 
-/* Header */
-.booking-header {
-  height: 80px;
-  background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-soft);
-  display: flex;
-  align-items: center;
-  z-index: 100;
-}
-
-.booking-header-container {
+/* Header - Hero Layout with Cover & Logo */
+.booking-hero {
+  position: relative;
   width: 100%;
-  max-width: 800px;
-  margin: 0 auto;
-  padding-inline: var(--space-4);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  height: 200px;
+  background-size: cover;
+  background-position: center;
+  background-color: var(--biz-accent-light); /* fallback sin cover */
+  border-bottom: 1px solid var(--border-soft);
 }
 
-.header-business-info {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-.business-logo {
-  width: 44px;
-  height: 44px;
-  border-radius: var(--radius-sm);
+.booking-hero-logo {
+  position: absolute;
+  bottom: -40px; /* mitad fuera de la cover */
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  border: 3px solid var(--bg-card, #fff);
   background: var(--biz-accent);
-  color: var(--biz-accent-text);
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 28px;
   font-weight: 800;
-  font-size: var(--text-xl);
-  box-shadow: 0 0 10px var(--biz-accent-light);
+  color: var(--biz-accent-text);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
   overflow: hidden;
+  z-index: 10;
 }
 
-.business-logo img {
+.booking-hero-logo img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
+.booking-hero-info {
+  text-align: center;
+  padding-top: 52px; /* espacio para el logo que sobresale */
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--border-soft);
+}
+
 .business-title {
-  font-size: var(--text-base);
+  font-size: var(--text-xl);
   font-weight: 800;
   line-height: 1.2;
+  margin-bottom: var(--space-1);
 }
 
 .business-subtitle {

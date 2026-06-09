@@ -167,7 +167,6 @@ export async function init(container) {
   };
 
   const alertInterval = setInterval(checkUpcomingAlerts, 60000);
-  checkUpcomingAlerts(); // ejecutar inmediatamente al cargar
 
   const sparksSVG = `
     <div class="metric-card-sparkles">
@@ -466,6 +465,7 @@ export async function init(container) {
       appointments = await getAppointments(businessId);
       calendarInstance.updateAppointments(appointments);
       await refreshMetricsAndNextApt();
+      checkUpcomingAlerts();
 
       if (payload.eventType === 'INSERT') {
         const clientName = payload.new?.client_name || 'Un cliente';
@@ -482,6 +482,9 @@ export async function init(container) {
   const metricsTimer = setInterval(async () => {
     await refreshMetricsAndNextApt();
   }, 60000);
+
+  // Ejecutar verificación de alertas inicial tras inicializar completamente la agenda
+  checkUpcomingAlerts();
 
   // Registrar cleanup para la navegación SPA
   container.cleanup = () => {

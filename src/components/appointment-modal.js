@@ -14,10 +14,7 @@ function formatTimeString(minutesSinceMidnight) {
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')} ${period}`;
 }
 
-const TIME_SLOTS = [];
-for (let min = 8 * 60; min <= 20 * 60; min += 10) {
-  TIME_SLOTS.push(formatTimeString(min));
-}
+// Los slots de hora se generan dinámicamente en renderTimeChips() según el horario real del negocio
 
 function parseTimeString(timeStr) {
   const [time, modifier] = timeStr.split(' ');
@@ -581,7 +578,12 @@ export async function openAppointmentModal({ appointments = [], onSave = null, m
       }
     }
 
-    TIME_SLOTS.forEach(slot => {
+    // Generar slots dinámicamente desde la hora de apertura hasta la de cierre del negocio
+    const dynamicSlots = [];
+    for (let min = bizStartMin; min <= bizEndMin; min += 10) {
+      dynamicSlots.push(formatTimeString(min));
+    }
+    dynamicSlots.forEach(slot => {
       const slotStart = parseTimeString(slot);
       const isOccupied = isNextFreeMode
         ? !professionals.some(p => isProfAvailableForSlot(p, slotStart, totalDuration, dateVal))

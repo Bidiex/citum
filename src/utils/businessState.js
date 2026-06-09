@@ -77,19 +77,26 @@ export async function addBusiness(payload) {
   const userId = await getUserId();
   if (!userId) throw new Error('No hay sesión activa');
 
+  const insertData = {
+    user_id: userId,
+    name: payload.name,
+    slug: payload.slug,
+    phone: payload.phone || null,
+    address: payload.address || null,
+    color: payload.color || '#8B5CF6',
+    logo_url: payload.logo || null,
+    cover_url: payload.cover || null,
+    is_paused: false,
+    plan: payload.plan || 'esencial',
+  };
+
+  if (payload.id) {
+    insertData.id = payload.id;
+  }
+
   const { data, error } = await supabase
     .from('businesses')
-    .insert({
-      user_id: userId,
-      name: payload.name,
-      slug: payload.slug,
-      phone: payload.phone || null,
-      address: payload.address || null,
-      color: payload.color || '#8B5CF6',
-      logo_url: payload.logo || null,
-      is_paused: false,
-      plan: payload.plan || 'esencial',
-    })
+    .insert(insertData)
     .select()
     .single();
 
@@ -114,6 +121,7 @@ export async function updateBusiness(id, payload) {
     address: payload.address || null,
     color: payload.color || '#8B5CF6',
     logo_url: payload.logo || null,
+    cover_url: payload.cover || null,
     is_paused: payload.paused || false,
   };
 
