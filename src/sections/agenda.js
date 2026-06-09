@@ -7,13 +7,16 @@ import {
   addAppointment, 
   updateAppointment, 
   deleteAppointment, 
-  getActiveBusinessId 
+  getActiveBusinessId,
+  getActiveBusiness,
+  getWhatsappTemplates
 } from '../utils/businessState.js';
 import { supabase } from '../core/supabase.js';
 import { showToast } from '../utils/toast.js';
 
 export async function init(container) {
   const businessId = getActiveBusinessId();
+  const currentBusiness = getActiveBusiness();
 
   if (!businessId) {
     container.innerHTML = `
@@ -90,6 +93,9 @@ export async function init(container) {
 
   // Cargar citas e inicializar calendario
   let appointments = await getAppointments(businessId);
+
+  if (container.getAttribute('data-active-section') !== 'agenda') return;
+
   const calWrapper = container.querySelector('#cal-view-wrapper');
 
   const calendarInstance = initCalendar({
@@ -117,6 +123,51 @@ export async function init(container) {
       }
     }
   });
+
+  // Detector de alertas de confirmación
+  const shownAlerts = new Set(); // evita mostrar la misma alerta dos veces por sesión
+  let alertModalOpen = false; // evita apilar modales
+  const alertQueue = []; // cola si hay múltiples citas en alerta simultáneas
+
+  const checkUpcomingAlerts = () => {
+    const threshold = currentBusiness?.alert_minutes_before ?? 15;
+    const now = new Date();
+
+    const toAlert = appointments.filter(apt => {
+      if (apt.status !== 'pendiente') return false;
+      if (apt.alert_dismissed) return false;
+      if (shownAlerts.has(apt.id)) return false;
+      const startsAt = new Date(apt.starts_at || `${apt.date}T${convertTo24h(apt.time)}`);
+      const minutesUntil = (startsAt - now) / 60000;
+      return minutesUntil <= threshold && minutesUntil > 0;
+    });
+
+    toAlert.forEach(apt => {
+      shownAlerts.add(apt.id);
+      alertQueue.push(apt);
+    });
+
+    processAlertQueue();
+  };
+
+  const processAlertQueue = async () => {
+    if (alertModalOpen || alertQueue.length === 0) return;
+    alertModalOpen = true;
+    const apt = alertQueue.shift();
+    const templates = await getWhatsappTemplates(businessId);
+    const { openAlertModal } = await import('../components/alert-confirmation-modal.js');
+    openAlertModal(apt, currentBusiness, templates, (dismissedId) => {
+      // Marcar en el array local para que el calendario se actualice
+      const idx = appointments.findIndex(a => a.id === dismissedId);
+      if (idx !== -1) appointments[idx].alert_dismissed = true;
+      calendarInstance.updateAppointments(appointments);
+      alertModalOpen = false;
+      processAlertQueue(); // procesar siguiente en cola
+    });
+  };
+
+  const alertInterval = setInterval(checkUpcomingAlerts, 60000);
+  checkUpcomingAlerts(); // ejecutar inmediatamente al cargar
 
   const sparksSVG = `
     <div class="metric-card-sparkles">
@@ -368,6 +419,8 @@ export async function init(container) {
   // Cargar métricas y próxima cita inicialmente
   await refreshMetricsAndNextApt();
 
+  if (container.getAttribute('data-active-section') !== 'agenda') return;
+
   const viewContainer = container.querySelector('.view-container');
   if (viewContainer && typeof lucide !== 'undefined') {
     lucide.createIcons({ node: viewContainer });
@@ -433,9 +486,19 @@ export async function init(container) {
   // Registrar cleanup para la navegación SPA
   container.cleanup = () => {
     clearInterval(metricsTimer);
+    clearInterval(alertInterval);
     if (realtimeChannel) {
       supabase.removeChannel(realtimeChannel);
       realtimeChannel = null;
     }
   };
+}
+
+function convertTo24h(timeStr) {
+  if (!timeStr) return '00:00:00';
+  const [time, modifier] = timeStr.split(' ');
+  let [hours, minutes] = time.split(':').map(Number);
+  if (modifier === 'PM' && hours < 12) hours += 12;
+  if (modifier === 'AM' && hours === 12) hours = 0;
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
 }

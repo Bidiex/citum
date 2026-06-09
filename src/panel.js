@@ -195,12 +195,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Incrementar token — cualquier navegación anterior queda invalidada
     const currentToken = ++navToken;
+    container.setAttribute('data-active-section', section);
 
     // Mostrar loading
     container.innerHTML = `
       <div class="dashboard-welcome">
         <div class="welcome-box">
-          <i data-lucide="loader" class="loader-icon anim-spin"></i>
+          <i data-lucide="loader" class="anim-spin" style="color:var(--accent-neon);"></i>
           <h2>Cargando ${section}...</h2>
         </div>
       </div>

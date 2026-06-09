@@ -367,6 +367,9 @@ export function initCalendar({
       const col = columns[c];
       col.forEach(item => {
         const card = document.createElement('div');
+        if (item.apt.alert_dismissed) {
+          card.classList.add('alert-dismissed');
+        }
         card.className = `cal-apt-card ${item.apt.status || 'confirmada'} ${viewMode === 'week' ? 'compact' : ''}`;
         
         // 8:00 AM es 480 minutos. El alto de hora es 60px.

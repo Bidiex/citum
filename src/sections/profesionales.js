@@ -190,6 +190,8 @@ export async function init(container) {
 
   let professionals = await fetchProfessionals(businessId);
 
+  if (container.getAttribute('data-active-section') !== 'profesionales') return;
+
   const render = () => {
     container.innerHTML = `
       <div class="view-container">

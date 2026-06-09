@@ -15,6 +15,9 @@ export async function init(container) {
 
   const render = async () => {
     const businesses = await getBusinesses();
+    
+    if (container.getAttribute('data-active-section') !== 'negocios') return;
+
     const activeId = getActiveBusinessId();
 
     container.innerHTML = `

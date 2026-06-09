@@ -648,6 +648,23 @@
   flex-shrink: 0; /* Previene colapso */
 }
 
+/* Icon adjustments for buttons inside the appointment detail modal */
+#apt-detail-root .btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: var(--space-2) !important; /* 8px spacing between icon and text */
+}
+
+#apt-detail-root .btn svg,
+#apt-detail-root .btn i {
+  width: 14px !important;
+  height: 14px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  flex-shrink: 0 !important;
+}
+
 /* Toast styling is now handled globally in toast.css via tokens.css */
 
 /* Confirm Dialog Styles */

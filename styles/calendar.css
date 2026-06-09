@@ -694,3 +694,12 @@
   align-items: center;
   background-color: var(--bg-secondary);
 }
+
+.cal-apt-card.alert-dismissed {
+  border-left-color: var(--color-danger) !important;
+  background: rgba(239, 68, 68, 0.06) !important;
+}
+
+.cal-apt-card.alert-dismissed .apt-status-dot {
+  background-color: var(--color-danger) !important;
+}

@@ -60,6 +60,9 @@ export async function init(container) {
     console.error('[Clientes init] Error cargando datos:', err);
   }
 
+  // Guardar contra condiciones de carrera
+  if (container.getAttribute('data-active-section') !== 'clientes') return;
+
   // --- RENDERIZADO DE TAB 1: CLIENTES ---
   const renderTabClients = () => {
     return `

@@ -32,6 +32,8 @@ export async function init(container) {
   const render = async () => {
     const services = await getServices(activeBizId);
 
+    if (container.getAttribute('data-active-section') !== 'servicios') return;
+
     container.innerHTML = `
       <div class="view-container">
         <div class="view-header">

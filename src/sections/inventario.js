@@ -562,6 +562,9 @@ export async function init(container) {
 
   // Cargar datos y renderizar por primera vez
   await loadData();
+
+  if (container.getAttribute('data-active-section') !== 'inventario') return;
+
   render();
 
   // --- ESCUCHA EN TIEMPO REAL ---

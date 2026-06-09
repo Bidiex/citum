@@ -10,17 +10,42 @@ import { parseTimestamptzToColombia } from '../utils/format.js';
  * @param {object} options
  * @param {object} options.client - { name, phone, last_service, last_service_date }
  * @param {function} [options.onClose] - Callback al cerrar
+ * @param {object} [options.appointment] - Cita opcional para usar como contexto inmediato
  */
-export async function openWhatsAppModal({ client, onClose }) {
+export async function openWhatsAppModal({ client, onClose, appointment = null }) {
   // 1. Obtener datos necesarios
   const activeBusiness = getActiveBusiness();
   const businessId = activeBusiness?.id;
   const businessName = activeBusiness?.name || 'Mi Negocio';
   const templates = await getTemplates(businessId);
 
-  // 2. Obtener la próxima cita pendiente o confirmada del cliente
+  // 2. Obtener la próxima cita o usar la cita específica proporcionada
   let nextApt = null;
-  if (businessId) {
+  if (appointment) {
+    // Si nos pasan una cita específica, usamos sus datos directamente
+    const { date, time } = appointment.starts_at 
+      ? parseTimestamptzToColombia(appointment.starts_at) 
+      : { date: appointment.date, time: appointment.time };
+    
+    let service = appointment.service || '';
+    if (!service && appointment.appointment_services) {
+      service = (appointment.appointment_services || []).map(s => s.service_name).join(' + ');
+    }
+    
+    let prof = appointment.prof || '';
+    if (!prof && appointment.professionals) {
+      prof = appointment.professionals.name;
+    }
+    if (!prof) prof = 'Cualquiera';
+
+    nextApt = {
+      date: date || appointment.date || '',
+      time: time || appointment.time || '',
+      service,
+      prof,
+      totalPrice: appointment.totalPrice || appointment.total_price || 0
+    };
+  } else if (businessId) {
     try {
       const { data: apts, error: aptError } = await supabase
         .from('appointments')

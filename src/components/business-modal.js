@@ -103,6 +103,7 @@ export function openBusinessModal({ mode = 'create', businessData = null, onSave
   const address = businessData?.address || '';
   const selectedColor = businessData?.color || '#8B5CF6'; // Violeta por defecto
   let logoBase64 = businessData?.logo || '';
+  const business = businessData || {};
 
   // Crear contenedor principal
   const root = document.createElement('div');
@@ -227,6 +228,32 @@ export function openBusinessModal({ mode = 'create', businessData = null, onSave
               </label>
               <span style="font-size: var(--text-xs); color: var(--text-muted); margin-left: 44px;">
                 (Cuando un negocio está en pausa, los clientes no pueden agendar citas ni ver la página pública de reservas)
+              </span>
+            </div>
+
+            <!-- Anticipación Alerta -->
+            <div class="form-group" style="margin-top: var(--space-4); margin-bottom: var(--space-6);">
+              <label class="form-label" for="biz-alert-minutes">
+                <i data-lucide="bell" style="width: 14px; height: 14px; margin-right: 4px;"></i>
+                Anticipación para alerta de confirmación
+              </label>
+              <div style="display: flex; align-items: center; gap: var(--space-3);">
+                <input
+                  type="number"
+                  id="biz-alert-minutes"
+                  class="form-input"
+                  min="5"
+                  max="120"
+                  step="5"
+                  value="${business.alert_minutes_before ?? 15}"
+                  style="width: 100px;"
+                />
+                <span style="font-size: var(--text-sm); color: var(--text-muted);">
+                  minutos antes de la cita
+                </span>
+              </div>
+              <span style="font-size: 11px; color: var(--text-muted); margin-top: var(--space-1); display: block;">
+                El sistema alertará para confirmar citas faltando este tiempo para su inicio.
               </span>
             </div>
 
@@ -751,6 +778,7 @@ export function openBusinessModal({ mode = 'create', businessData = null, onSave
       if (statusToggle) {
         payload.paused = statusToggle.checked;
       }
+      payload.alert_minutes_before = parseInt(document.getElementById('biz-alert-minutes')?.value) || 15;
     }
 
     // Deshabilitar botón durante guardado

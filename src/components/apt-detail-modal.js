@@ -2,6 +2,7 @@ import { showConfirm } from '../utils/confirm.js';
 import { showToast } from '../utils/toast.js';
 import { getServices, getActiveBusinessId } from '../utils/businessState.js';
 import { supabase } from '../core/supabase.js';
+import { openWhatsAppModal } from './whatsapp-modal.js';
 
 // Helper para formatear fecha en español
 function formatDateSpanish(dateStr) {
@@ -238,17 +239,17 @@ export async function openAptDetailModal({ apt, onEdit = null, onDelete = null, 
   if (apt.status === 'pendiente') {
     actionsHtml = `
       <div class="apt-modal-section" id="apt-actions-section" style="border-top: 1px solid var(--border-soft); padding-top: var(--space-4); display: flex; flex-direction: column; gap: var(--space-2.5);">
-        <button class="btn btn-primary" id="btn-action-confirm" style="width: 100%; height: 40px; justify-content: center; font-weight: 700;">
-          <i data-lucide="check" size="16" style="margin-right: var(--space-2);"></i>
+        <button class="btn btn-primary" id="btn-action-confirm" style="width: 100%; height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); font-weight: 700;">
+          <i data-lucide="check" size="14"></i>
           Confirmar asistencia
         </button>
         <div style="display: flex; gap: var(--space-3); width: 100%;">
-          <button class="btn btn-secondary" id="btn-action-no-show" style="flex: 1; height: 38px; justify-content: center; font-size: var(--text-sm); font-weight: 600; color: var(--text-secondary); border-color: var(--border-soft);">
-            <i data-lucide="clock" size="14" style="margin-right: var(--space-1.5);"></i>
+          <button class="btn btn-secondary" id="btn-action-no-show" style="flex: 1; height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); font-size: var(--text-sm); font-weight: 600; color: var(--text-secondary); border-color: var(--border-soft);">
+            <i data-lucide="clock" size="14"></i>
             No asistió
           </button>
-          <button class="btn btn-secondary" id="btn-action-cancel" style="flex: 1; height: 38px; justify-content: center; font-size: var(--text-sm); font-weight: 600; color: var(--color-danger); border-color: rgba(239, 68, 68, 0.2); background: rgba(239, 68, 68, 0.01);">
-            <i data-lucide="x" size="14" style="margin-right: var(--space-1.5);"></i>
+          <button class="btn btn-secondary" id="btn-action-cancel" style="flex: 1; height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); font-size: var(--text-sm); font-weight: 600; color: var(--color-danger); border-color: rgba(239, 68, 68, 0.2); background: rgba(239, 68, 68, 0.01);">
+            <i data-lucide="x" size="14"></i>
             Cancelar cita
           </button>
         </div>
@@ -257,17 +258,17 @@ export async function openAptDetailModal({ apt, onEdit = null, onDelete = null, 
   } else if (apt.status === 'confirmada') {
     actionsHtml = `
       <div class="apt-modal-section" id="apt-actions-section" style="border-top: 1px solid var(--border-soft); padding-top: var(--space-4); display: flex; flex-direction: column; gap: var(--space-2.5);">
-        <button class="btn btn-primary" id="btn-action-complete" style="width: 100%; height: 40px; justify-content: center; font-weight: 700; background: var(--color-success); border-color: var(--color-success);">
-          <i data-lucide="check" size="16" style="margin-right: var(--space-2);"></i>
+        <button class="btn btn-primary" id="btn-action-complete" style="width: 100%; height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); font-weight: 700; background: var(--color-success); border-color: var(--color-success);">
+          <i data-lucide="check" size="14"></i>
           Marcar como completada
         </button>
         <div style="display: flex; gap: var(--space-3); width: 100%;">
-          <button class="btn btn-secondary" id="btn-action-no-show" style="flex: 1; height: 38px; justify-content: center; font-size: var(--text-sm); font-weight: 600; color: var(--text-secondary); border-color: var(--border-soft);">
-            <i data-lucide="clock" size="14" style="margin-right: var(--space-1.5);"></i>
+          <button class="btn btn-secondary" id="btn-action-no-show" style="flex: 1; height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); font-size: var(--text-sm); font-weight: 600; color: var(--text-secondary); border-color: var(--border-soft);">
+            <i data-lucide="clock" size="14"></i>
             No asistió
           </button>
-          <button class="btn btn-secondary" id="btn-action-cancel" style="flex: 1; height: 38px; justify-content: center; font-size: var(--text-sm); font-weight: 600; color: var(--color-danger); border-color: rgba(239, 68, 68, 0.2); background: rgba(239, 68, 68, 0.01);">
-            <i data-lucide="x" size="14" style="margin-right: var(--space-1.5);"></i>
+          <button class="btn btn-secondary" id="btn-action-cancel" style="flex: 1; height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); font-size: var(--text-sm); font-weight: 600; color: var(--color-danger); border-color: rgba(239, 68, 68, 0.2); background: rgba(239, 68, 68, 0.01);">
+            <i data-lucide="x" size="14"></i>
             Cancelar cita
           </button>
         </div>
@@ -276,9 +277,9 @@ export async function openAptDetailModal({ apt, onEdit = null, onDelete = null, 
   } else if (apt.status === 'completada') {
     actionsHtml = `
       <div class="apt-modal-section" id="apt-actions-section" style="border-top: 1px solid var(--border-soft); padding-top: var(--space-4);">
-        <button class="btn btn-primary" id="btn-action-invoice" style="width: 100%; height: 42px; justify-content: center; font-weight: 800; background: var(--grad-cta); box-shadow: 0 4px 12px rgba(139, 92, 255, 0.2);">
+        <button class="btn btn-primary" id="btn-action-invoice" style="width: 100%; height: 42px; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); font-weight: 800; background: var(--grad-cta); box-shadow: 0 4px 12px rgba(139, 92, 255, 0.2);">
           Ir a Facturación
-          <i data-lucide="arrow-right" size="16" style="margin-left: var(--space-2);"></i>
+          <i data-lucide="arrow-right" size="14"></i>
         </button>
       </div>
     `;
@@ -297,15 +298,23 @@ export async function openAptDetailModal({ apt, onEdit = null, onDelete = null, 
           background: rgba(239, 68, 68, 0.02);
           height: 40px;
           padding-inline: var(--space-4);
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: var(--space-2);
         ">
-          <i data-lucide="trash-2" size="16" style="margin-right: var(--space-2);"></i>
+          <i data-lucide="trash-2" size="14"></i>
           Eliminar Cita
         </button>
         <button class="btn btn-primary" id="apt-detail-edit-btn" style="
           height: 40px;
           padding-inline: var(--space-4);
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: var(--space-2);
         ">
-          <i data-lucide="edit-3" size="16" style="margin-right: var(--space-2);"></i>
+          <i data-lucide="edit-3" size="14"></i>
           Editar Cita
         </button>
       </div>
@@ -413,6 +422,11 @@ export async function openAptDetailModal({ apt, onEdit = null, onDelete = null, 
                 <a href="tel:${apt.phone}" style="display: inline-flex; align-items: center; gap: 5px; color: var(--text-secondary); text-decoration: none; font-size: var(--text-xs); font-weight: 600; transition: color 0.15s;" onmouseover="this.style.color='var(--accent-neon)'" onmouseout="this.style.color='var(--text-secondary)'">
                   <i data-lucide="phone" size="12"></i> ${apt.phone}
                 </a>
+                <span style="color: var(--border-soft); font-size: 12px;">|</span>
+                <button id="btn-wa-notify" style="background: none; border: none; padding: 0; color: var(--color-success, #10b981); font-weight: 700; cursor: pointer; font-size: var(--text-xs); display: inline-flex; align-items: center; gap: 4px; transition: opacity 0.15s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
+                  <i data-lucide="message-circle" size="12"></i>
+                  Notificar
+                </button>
               ` : ''}
               ${apt.phone && apt.email ? `<span style="color: var(--border-soft); font-size: 12px;">|</span>` : ''}
               ${apt.email ? `
@@ -642,6 +656,29 @@ export async function openAptDetailModal({ apt, onEdit = null, onDelete = null, 
       if (res.confirmed) {
         transicionarEstado('cancelada', { reason: res.reason });
       }
+    });
+  }
+
+  // Botón Notificar WhatsApp
+  const waNotifyBtn = root.querySelector('#btn-wa-notify');
+  if (waNotifyBtn) {
+    waNotifyBtn.addEventListener('click', async () => {
+      if (!apt.phone) {
+        showToast({
+          title: 'Sin teléfono',
+          subtitle: 'Esta cita no tiene registrado ningún número de contacto.',
+          type: 'error'
+        });
+        return;
+      }
+      await openWhatsAppModal({
+        client: {
+          name: apt.client,
+          phone: apt.phone
+        },
+        appointment: apt,
+        onClose: () => {}
+      });
     });
   }
 }

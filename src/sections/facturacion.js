@@ -35,6 +35,9 @@ export async function init(container) {
   if (typeof lucide !== 'undefined') lucide.createIcons();
   
   let invoices = await getInvoices(businessId);
+
+  if (container.getAttribute('data-active-section') !== 'facturacion') return;
+
   let searchQuery = '';
   let currentPage = 1;
 

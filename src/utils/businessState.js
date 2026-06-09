@@ -117,6 +117,10 @@ export async function updateBusiness(id, payload) {
     is_paused: payload.paused || false,
   };
 
+  if (payload.alert_minutes_before !== undefined) {
+    update.alert_minutes_before = payload.alert_minutes_before;
+  }
+
   if (payload.has_configured_hours !== undefined) {
     update.has_configured_hours = payload.has_configured_hours;
   }
@@ -424,7 +428,9 @@ export async function getAppointments(businessId) {
       rawServices: apt.appointment_services,
       completed_at: apt.completed_at,
       cancelled_at: apt.cancelled_at,
-      cancellation_reason: apt.cancellation_reason
+      cancellation_reason: apt.cancellation_reason,
+      alert_dismissed: apt.alert_dismissed || false,
+      starts_at: apt.starts_at
     };
   });
 }
@@ -874,6 +880,15 @@ export async function getBusinessHolidays(businessId) {
     console.error('[getBusinessHolidays] Error:', error.message);
     return [];
   }
+  return data || [];
+}
+
+export async function getWhatsappTemplates(businessId) {
+  const { data } = await supabase
+    .from('whatsapp_templates')
+    .select('*')
+    .eq('business_id', businessId)
+    .order('name', { ascending: true });
   return data || [];
 }
 
