@@ -531,3 +531,183 @@
   bottom: 0;
   background: linear-gradient(to top, var(--wheel-bg, rgba(139, 92, 255, 0.05)) 0%, transparent 100%);
 }
+
+/* ============================================================ */
+/* PANTALLA "LOCAL CERRADO"                                     */
+/* ============================================================ */
+
+.closed-screen {
+  animation: closedFadeIn 400ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: var(--space-8) var(--space-6) var(--space-12);
+  gap: var(--space-6);
+}
+
+@keyframes closedFadeIn {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Anillo animado del ícono principal */
+.closed-icon-ring {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.closed-icon-ring::before,
+.closed-icon-ring::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid var(--biz-accent);
+  opacity: 0;
+  animation: closedRingPulse 2.8s ease-out infinite;
+}
+
+.closed-icon-ring::after {
+  animation-delay: 1.4s;
+}
+
+@keyframes closedRingPulse {
+  0%   { transform: scale(1);    opacity: 0.6; }
+  100% { transform: scale(1.7);  opacity: 0; }
+}
+
+.closed-icon-inner {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--biz-accent-light);
+  border: 1.5px solid var(--biz-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--biz-accent);
+  box-shadow: 0 0 24px var(--biz-accent-light);
+}
+
+/* Textos */
+.closed-headline {
+  font-size: var(--text-2xl);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  margin: 0;
+}
+
+.closed-subtext {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.6;
+  max-width: 300px;
+}
+
+/* Badge de horario de hoy */
+.closed-today-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-pill);
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: #ef4444;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.closed-today-badge .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ef4444;
+  animation: dotBlink 1.4s ease-in-out infinite;
+}
+
+@keyframes dotBlink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.2; }
+}
+
+/* Card de próxima apertura */
+.closed-next-card {
+  width: 100%;
+  max-width: 360px;
+  background: var(--biz-accent-light);
+  border: 1.5px solid var(--biz-accent);
+  border-radius: var(--radius-md);
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  box-shadow: 0 8px 32px var(--biz-accent-light);
+}
+
+.closed-next-label {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--biz-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.closed-next-day {
+  font-size: var(--text-xl);
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.closed-next-time {
+  font-size: var(--text-3xl);
+  font-weight: 900;
+  color: var(--biz-accent);
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.closed-next-divider {
+  width: 40px;
+  height: 1px;
+  background: var(--biz-accent);
+  opacity: 0.3;
+}
+
+/* Horario de hoy (si tiene) */
+.closed-today-hours {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Footer tip */
+.closed-footer-tip {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin-top: var(--space-2);
+  opacity: 0.8;
+}
+
+/* Botón CTA — "Agendar para otro día" */
+.closed-cta-btn {
+  width: 100%;
+  max-width: 360px;
+  padding: 14px 24px;
+  font-size: var(--text-base);
+  gap: var(--space-2);
+}

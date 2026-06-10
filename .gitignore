@@ -37,3 +37,6 @@ dist-ssr/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Internal documentation (no subir al repo)
+README.md

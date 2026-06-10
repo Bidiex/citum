@@ -7,6 +7,7 @@ import {
 } from './utils/businessState.js';
 import { auth } from './core/auth.js';
 import { supabase } from './core/supabase.js';
+import { initAiAssistant } from './components/ai-assistant.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
   // Inicializar Iconos Lucide
@@ -302,4 +303,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Cargar información de perfil
   loadProfileInfo();
+
+  // Inicializar Asistente de IA
+  initAiAssistant(document.body);
 });
