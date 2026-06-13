@@ -20,6 +20,8 @@ export function openProductModal({ mode = 'create', productData = null, onSave =
   const stockIdeal = productData?.stock_ideal || '';
   const costPerUnit = productData?.cost_per_unit || '';
   const isActive = productData ? (productData.is_active !== false) : true;
+  const isSellable = productData?.is_sellable ?? false;
+  const salePrice = productData?.sale_price ?? '';
 
   const root = document.createElement('div');
   root.id = 'prod-drawer-root';
@@ -88,6 +90,43 @@ export function openProductModal({ mode = 'create', productData = null, onSave =
           </div>
         </div>
 
+        <!-- ¿Se vende al cliente? -->
+        <div class="form-group" style="margin-top: var(--space-4);">
+          <div style="display: flex; align-items: center; gap: var(--space-3);">
+            <label class="schedule-day-toggle">
+              <input type="checkbox" id="prod-sellable" ${isSellable ? 'checked' : ''} />
+              <div class="schedule-day-toggle-custom"></div>
+            </label>
+            <div>
+              <span style="font-weight: 700; font-size: var(--text-sm); display: block; color: var(--text-primary);">Disponible para venta al cliente</span>
+              <span style="display: block; font-size: 11px; color: var(--text-muted); font-weight: 400;">
+                Aparecerá en el POS al momento de facturar
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Precio de venta — visible solo si is_sellable -->
+        <div class="form-group" id="sale-price-group" style="display: ${isSellable ? 'block' : 'none'}; margin-top: var(--space-3);">
+          <label class="form-label" for="prod-sale-price">Precio de venta al cliente *</label>
+          <div style="position: relative;">
+            <span style="position: absolute; left: var(--space-3); top: 50%; transform: translateY(-50%); color: var(--text-muted); font-weight: 700;">$</span>
+            <input
+              type="number"
+              id="prod-sale-price"
+              class="form-input"
+              min="0"
+              step="100"
+              placeholder="0"
+              value="${salePrice}"
+              style="padding-left: var(--space-6);"
+            />
+          </div>
+          <span style="font-size: 11px; color: var(--text-muted); margin-top: 4px; display: block;">
+            Diferente al costo de insumo. Este es el precio que verá el cajero en el POS.
+          </span>
+        </div>
+
         ${mode === 'edit' ? `
           <div class="form-group">
             <label for="prod-active">Estado</label>
@@ -131,6 +170,12 @@ export function openProductModal({ mode = 'create', productData = null, onSave =
   const stockIdealInput = root.querySelector('#prod-stock-ideal');
   const costInput = root.querySelector('#prod-cost');
   const activeSelect = root.querySelector('#prod-active');
+  const sellableCheckbox = root.querySelector('#prod-sellable');
+  const salePriceGroup = root.querySelector('#sale-price-group');
+
+  sellableCheckbox.addEventListener('change', () => {
+    salePriceGroup.style.display = sellableCheckbox.checked ? 'block' : 'none';
+  });
 
   unitTypeSelect.addEventListener('change', () => {
     if (unitTypeSelect.value === 'measurable') {
@@ -179,6 +224,14 @@ export function openProductModal({ mode = 'create', productData = null, onSave =
 
     if (hasError) return;
 
+    const isSellableVal = sellableCheckbox?.checked ?? false;
+    const salePriceVal = parseFloat(root.querySelector('#prod-sale-price')?.value) || null;
+
+    if (isSellableVal && !salePriceVal) {
+      showToast({ title: 'Precio requerido', subtitle: 'Ingresa el precio de venta al cliente.', type: 'warning' });
+      return;
+    }
+
     saveBtn.disabled = true;
     saveBtn.textContent = 'Guardando...';
 
@@ -193,6 +246,8 @@ export function openProductModal({ mode = 'create', productData = null, onSave =
       stock_minimum: minVal,
       stock_ideal: parseFloat(stockIdealInput.value) || null,
       cost_per_unit: parseFloat(costInput.value) || null,
+      is_sellable: isSellableVal,
+      sale_price: isSellableVal ? salePriceVal : null,
       is_active: activeSelect ? activeSelect.value === 'true' : true
     };
 

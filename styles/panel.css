@@ -281,6 +281,12 @@ body {
   }
 }
 
+@media (max-width: 767px) {
+  .panel-content {
+    padding: var(--space-4);
+  }
+}
+
 /* Dashboard Placeholders (Welcome & Sub-views) */
 .dashboard-welcome {
   height: 100%;
@@ -369,6 +375,58 @@ body {
 
   .toggle-sidebar-mobile {
     display: flex;
+  }
+}
+
+/* Mobile global fixes */
+@media (max-width: 768px) {
+  .panel-header {
+    padding-inline: var(--space-4);
+  }
+  .header-left {
+    gap: var(--space-3);
+  }
+  .section-title-active {
+    font-size: var(--text-xl);
+  }
+  #current-business-name {
+    max-width: 100px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: inline-block;
+    vertical-align: middle;
+  }
+  .profile-name {
+    display: none;
+  }
+  .profile-info {
+    padding: var(--space-1) var(--space-2);
+  }
+  
+  .view-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .view-actions {
+    justify-content: stretch;
+  }
+  .view-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .crm-table-header-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-3);
+    padding: var(--space-3);
+  }
+  .crm-search-input-wrapper {
+    max-width: none;
+  }
+  .crm-table th, .crm-table td {
+    padding: 12px 14px;
   }
 }
 
@@ -837,13 +895,33 @@ body {
 
 @media (max-width: 1200px) {
   .agenda-metrics {
-    grid-template-columns: repeat(2, 1fr);
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    padding-bottom: var(--space-4);
+    margin-right: calc(var(--space-6) * -1); /* Bleed out */
+    padding-right: var(--space-6);
+  }
+  
+  .agenda-metrics::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .metric-card {
+    flex: 0 0 280px;
+    scroll-snap-align: start;
   }
 }
 
-@media (max-width: 576px) {
+@media (max-width: 768px) {
   .agenda-metrics {
-    grid-template-columns: 1fr;
+    margin-right: calc(var(--space-4) * -1);
+    padding-right: var(--space-4);
+  }
+  .metric-card {
+    flex: 0 0 85%;
+    max-width: 320px;
   }
 }
 

@@ -703,3 +703,38 @@
 .cal-apt-card.alert-dismissed .apt-status-dot {
   background-color: var(--color-danger) !important;
 }
+
+/* Responsive adjustments for Calendar */
+@media (max-width: 768px) {
+  .cal-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+  }
+  .cal-title {
+    text-align: left;
+    margin-bottom: var(--space-1);
+    font-size: var(--text-base);
+  }
+  .cal-nav-group {
+    justify-content: space-between;
+    width: 100%;
+  }
+  .apt-detail-modal {
+    max-width: calc(100% - var(--space-4));
+    margin: var(--space-2);
+    max-height: 95vh;
+  }
+  .apt-detail-body {
+    max-height: calc(95vh - 140px);
+  }
+  .cal-week-day-name {
+    font-size: 8px;
+  }
+  .cal-week-day-number {
+    width: 24px;
+    height: 24px;
+    font-size: var(--text-xs);
+  }
+}

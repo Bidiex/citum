@@ -1,7 +1,7 @@
 // professional-drawer.js — Componente Drawer para Registro/Edición de Profesionales y sus Horarios
 import { showToast } from '../utils/toast.js';
 import { showConfirm } from '../utils/confirm.js';
-import { getBusinessSchedules } from '../utils/businessState.js';
+import { getBusinessSchedules, getActiveBusinessId } from '../utils/businessState.js';
 
 const TIME_OPTIONS = [
   { value: '06:00:00', label: '06:00 AM' },
@@ -546,7 +546,7 @@ export function openProfessionalDrawer({ mode = 'create', professional = null, o
   }
 
   // Guardar Profesional Completo
-  saveBtn.addEventListener('click', () => {
+  saveBtn.addEventListener('click', async () => {
     // Validar Datos Básicos
     nameInput.classList.remove('form-input-error');
     roleInput.classList.remove('form-input-error');
@@ -581,7 +581,8 @@ export function openProfessionalDrawer({ mode = 'create', professional = null, o
 
     // Validar Rango de Horarios para los Días Activos
     let scheduleValidationPassed = true;
-    const bizSchedules = getBusinessSchedules();
+    const bizId = getActiveBusinessId();
+    const bizSchedules = await getBusinessSchedules(bizId);
     
     DAYS_OF_WEEK.forEach(day => {
       const state = scheduleState[day.id];

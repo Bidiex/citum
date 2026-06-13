@@ -434,10 +434,22 @@ export async function init(container) {
         mode: 'create',
         onSave: async (newApt, selectedServices) => {
           try {
+            // Bandera temporal para silenciar el toast del Realtime y evitar duplicados
+            window.__lastLocalAppointmentTime = Date.now();
+            
+            // Esperamos la inserción real en BD para asegurar que se creó
             await addAppointment(businessId, newApt, selectedServices);
-            appointments = await getAppointments(businessId);
-            calendarInstance.updateAppointments(appointments);
-            await refreshMetricsAndNextApt();
+            
+            // La recarga visual (citas y métricas) se dispara en background sin 'await'
+            // Esto permite que la promesa onSave termine rápido y el modal se cierre al instante.
+            Promise.all([
+              getAppointments(businessId).then(apts => {
+                appointments = apts;
+                calendarInstance.updateAppointments(appointments);
+              }),
+              refreshMetricsAndNextApt()
+            ]).catch(err => console.error('[Background Refresh Error]', err));
+
           } catch (err) {
             console.error('[onSave new appointment] Error:', err);
             throw err;
@@ -468,12 +480,18 @@ export async function init(container) {
       checkUpcomingAlerts();
 
       if (payload.eventType === 'INSERT') {
-        const clientName = payload.new?.client_name || 'Un cliente';
-        showToast({
-          title: 'Nueva cita agendada',
-          subtitle: `${clientName} acaba de agendar una cita desde el portal.`,
-          type: 'success'
-        });
+        // Verificar si la cita acaba de ser creada en esta misma sesión (en los últimos 3 segundos)
+        const isLocalInsert = window.__lastLocalAppointmentTime && (Date.now() - window.__lastLocalAppointmentTime < 3000);
+
+        // Si NO fue creada por nosotros, es una cita que entró por el portal web
+        if (!isLocalInsert) {
+          const clientName = payload.new?.client_name || 'Un cliente';
+          showToast({
+            title: 'Nueva cita agendada',
+            subtitle: `${clientName} acaba de agendar una cita desde el portal.`,
+            type: 'success'
+          });
+        }
       }
     })
     .subscribe();

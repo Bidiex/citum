@@ -1226,4 +1226,34 @@
   border-color: var(--accent-purple);
 }
 
+/* Modal and POS responsive adjustments */
+@media (max-width: 1024px) {
+  .pos-layout {
+    flex-direction: column;
+    overflow-y: auto !important;
+  }
+  .pos-left-panel, .pos-right-panel {
+    flex: none !important;
+    overflow-y: visible !important;
+  }
+  .pos-right-panel {
+    border-left: none !important;
+    border-top: 1px solid var(--border-soft);
+  }
+}
 
+@media (max-width: 768px) {
+  .apt-modal, .confirm-dialog {
+    max-width: calc(100% - var(--space-4));
+    margin: var(--space-2);
+    max-height: 95vh;
+  }
+  .biz-drawer {
+    max-width: 100%;
+  }
+  
+  /* Appointment modal responsive overrides */
+  #apt-modal-root .apt-modal-body {
+    padding: var(--space-4);
+  }
+}

@@ -63,6 +63,7 @@ export async function openAppointmentModal({ appointments = [], onSave = null, m
   let selectedTimeSlot = '';
   let serviceNames = [];
   let isManualTimeMode = false;
+  let rpcAvailabilityMap = {}; // Guarda { "04:30 PM": ["profId1", "profId2"] } según la BD
 
   if (mode === 'edit' && appointmentData) {
     isNextFreeMode = false; // Edición suele fijar un profesional asignado
@@ -454,6 +455,8 @@ export async function openAppointmentModal({ appointments = [], onSave = null, m
       if (mode === 'edit' && appointmentData && apt.id === appointmentData.id) return false;
       if (apt.date !== dateVal) return false;
       if (apt.professional_id !== profId) return false;
+      // Ignorar citas canceladas o ya finalizadas/facturadas
+      if (['cancelada', 'facturada'].includes(apt.status)) return false;
       const range = getAppointmentTimeRange(apt);
       return slotStart < range.end && (slotStart + duration) > range.start;
     });
@@ -529,9 +532,9 @@ export async function openAppointmentModal({ appointments = [], onSave = null, m
     }
 
     // ── Consultar slots disponibles directamente en la BD (fuente de verdad) ──
-    // Esto evita que citas creadas desde el portal, otra pestaña o sesión simultánea
-    // no sean detectadas por el snapshot en memoria.
     let availableSet = new Set();
+    rpcAvailabilityMap = {}; // Resetear mapa
+    
     if (!isHoliday && !isBizClosed && !isProfUnavailable) {
       try {
         if (!isNextFreeMode && profName) {
@@ -545,6 +548,8 @@ export async function openAppointmentModal({ appointments = [], onSave = null, m
             data.forEach(slot => {
               const { time } = parseTimestamptzToColombia(slot.slot_start);
               availableSet.add(time);
+              if (!rpcAvailabilityMap[time]) rpcAvailabilityMap[time] = [];
+              rpcAvailabilityMap[time].push(profName);
             });
           } else if (error) {
             console.warn('[renderTimeChips] RPC error:', error.message);
@@ -561,11 +566,14 @@ export async function openAppointmentModal({ appointments = [], onSave = null, m
               })
             )
           );
-          results.forEach(res => {
+          results.forEach((res, index) => {
+            const profId = activeProfessionals[index].id;
             if (res.data) {
               res.data.forEach(slot => {
                 const { time } = parseTimestamptzToColombia(slot.slot_start);
                 availableSet.add(time);
+                if (!rpcAvailabilityMap[time]) rpcAvailabilityMap[time] = [];
+                rpcAvailabilityMap[time].push(profId);
               });
             }
           });
@@ -625,6 +633,12 @@ export async function openAppointmentModal({ appointments = [], onSave = null, m
         isPastTime = true;
       }
 
+      // Ocultar chips de horas pasadas para no obligar al usuario a hacer scroll horizontal,
+      // a menos que sea el slot que ya está seleccionado (ej. editando una cita pasada).
+      if (isPastTime && selectedTimeSlot !== slot) {
+        continue;
+      }
+
       // Disponible según la BD, y no es pasado/feriado/cerrado
       const isAvailable = availableSet.has(slot);
       const disabled = !isAvailable || isPastTime || isHoliday || isBizClosed || isProfUnavailable;
@@ -678,34 +692,35 @@ export async function openAppointmentModal({ appointments = [], onSave = null, m
 
     if (isNextFreeMode) {
       if (selectedTimeSlot) {
-        const slotStart = parseTimeString(selectedTimeSlot);
         let assignedProf = null;
-        let bestEndTime = Infinity;
 
-        for (const prof of professionals) {
-          const isBusy = !isProfAvailableForSlot(prof, slotStart, totalDuration, dateVal);
-          if (!isBusy) {
-            assignedProf = prof;
-            break;
-          } else {
-            const freeTime = getEarliestFreeAfter(slotStart, prof.id, dateVal);
-            if (freeTime < bestEndTime) {
-              bestEndTime = freeTime;
-              assignedProf = prof;
-            }
-          }
+        // Usar la verdad absoluta de la BD (RPC) para asignar
+        if (rpcAvailabilityMap[selectedTimeSlot] && rpcAvailabilityMap[selectedTimeSlot].length > 0) {
+          const profId = rpcAvailabilityMap[selectedTimeSlot][0];
+          assignedProf = professionals.find(p => p.id === profId);
         }
 
         if (assignedProf) {
           profSelect.value = assignedProf.id;
-          const isBusy = !isProfAvailableForSlot(assignedProf, slotStart, totalDuration, dateVal);
-          if (!isBusy) {
-            profHintText.textContent = `✨ ${assignedProf.name} está libre en este horario.`;
-          } else {
-            profHintText.textContent = `⚠️ Todos ocupados. ${assignedProf.name} se libera antes (a las ${formatTimeString(bestEndTime)}).`;
-          }
+          profHintText.textContent = `✨ ${assignedProf.name} está libre en este horario.`;
         } else {
-          profHintText.textContent = 'No hay profesionales disponibles.';
+          // Ninguno está libre. Buscar quién se libera primero.
+          let bestProf = null;
+          let bestEndTime = Infinity;
+          for (const prof of professionals) {
+            if (prof.active === false) continue;
+            const freeTime = getEarliestFreeAfter(parseTimeString(selectedTimeSlot), prof.id, dateVal);
+            if (freeTime < bestEndTime) {
+              bestEndTime = freeTime;
+              bestProf = prof;
+            }
+          }
+          if (bestProf) {
+            profSelect.value = bestProf.id;
+            profHintText.textContent = `⚠️ Todos ocupados. ${bestProf.name} se libera antes (a las ${formatTimeString(bestEndTime)}).`;
+          } else {
+            profHintText.textContent = 'No hay profesionales disponibles.';
+          }
         }
       } else {
         profHintText.textContent = 'Auto-asignando el profesional más disponible...';
@@ -716,10 +731,9 @@ export async function openAppointmentModal({ appointments = [], onSave = null, m
       const prof = professionals.find(p => p.id === profId);
       const profName = prof ? prof.name : '';
       if (selectedTimeSlot && profId) {
-        const slotStart = parseTimeString(selectedTimeSlot);
-        const isBusy = !isProfAvailableForSlot(prof, slotStart, totalDuration, dateVal);
-        if (isBusy) {
-          const nextFree = getEarliestFreeAfter(slotStart, profId, dateVal);
+        const isFree = rpcAvailabilityMap[selectedTimeSlot] && rpcAvailabilityMap[selectedTimeSlot].includes(profId);
+        if (!isFree) {
+          const nextFree = getEarliestFreeAfter(parseTimeString(selectedTimeSlot), profId, dateVal);
           profHintText.textContent = `⚠️ ${profName} está ocupado en ese bloque. Disponible a las ${formatTimeString(nextFree)}.`;
         } else {
           profHintText.textContent = `✨ ${profName} está libre a las ${selectedTimeSlot}.`;
@@ -838,22 +852,47 @@ export async function openAppointmentModal({ appointments = [], onSave = null, m
   // 2. Botón "Ahora mismo"
   root.querySelector('#btn-quick-now').addEventListener('click', async () => {
     dateInput.value = todayStr;
+    selectedTimeSlot = ''; // Limpiar selección previa
+    await renderTimeChips(); // Recargar chips reales
+
     const { hours, minutes } = getColombiaTimeParts();
     let nowMinutes = hours * 60 + minutes;
-    // Redondear hacia arriba al próximo múltiplo de 10 minutos
     nowMinutes = Math.floor(nowMinutes / 10) * 10 + 10;
-    const slotStr = formatTimeString(nowMinutes);
-    selectedTimeSlot = slotStr;
+    const nowSlotStr = formatTimeString(nowMinutes);
 
-    if (isManualTimeMode) {
-      const displayHours = Math.floor(nowMinutes / 60) % 24;
-      const displayMins = nowMinutes % 60;
-      manualTimeInput.value = `${String(displayHours).padStart(2, '0')}:${String(displayMins).padStart(2, '0')}`;
+    // Intentar encontrar el chip de esta hora exacta que NO esté deshabilitado
+    let targetChip = Array.from(timeChipsContainer.querySelectorAll('.time-chip'))
+      .find(c => c.textContent.includes(nowSlotStr) && !c.classList.contains('disabled'));
+
+    if (targetChip) {
+      targetChip.click(); // Seleccionar automáticamente
+    } else {
+      // Si está ocupado o pasado, buscar el PRÓXIMO chip disponible posterior a esta hora
+      targetChip = Array.from(timeChipsContainer.querySelectorAll('.time-chip'))
+        .find(c => {
+          const chipTimeStr = c.textContent.replace('Ahora (', '').replace(')', '').trim();
+          return !c.classList.contains('disabled') && parseTimeString(chipTimeStr) >= nowMinutes;
+        });
+      
+      if (targetChip) {
+        showToast({ title: 'Aviso', subtitle: 'La hora actual está ocupada. Buscando próxima disponibilidad...', type: 'info' });
+        targetChip.click();
+      } else {
+        showToast({ title: 'Aviso', subtitle: 'No hay más horarios disponibles por hoy.', type: 'warning' });
+        updateAvailabilityHint();
+      }
     }
 
-    // Actualizar ui
-    await renderTimeChips();
-    updateAvailabilityHint();
+    if (isManualTimeMode) {
+      if (selectedTimeSlot) {
+        const finalMin = parseTimeString(selectedTimeSlot);
+        const displayHours = Math.floor(finalMin / 60) % 24;
+        const displayMins = finalMin % 60;
+        manualTimeInput.value = `${String(displayHours).padStart(2, '0')}:${String(displayMins).padStart(2, '0')}`;
+      } else {
+        manualTimeInput.value = '';
+      }
+    }
 
     // Centrar scroll en el chip seleccionado
     setTimeout(() => {
@@ -1001,6 +1040,41 @@ export async function openAppointmentModal({ appointments = [], onSave = null, m
           type: 'warning'
         });
         hasError = true;
+      }
+    }
+
+    // 6. Validar que el profesional esté realmente libre (para evitar solapamientos forzados)
+    if (selectedTimeSlot && !hasError) {
+      let finalProfId = profSelect.value;
+
+      if (isNextFreeMode) {
+        let assignedProf = null;
+        if (rpcAvailabilityMap[selectedTimeSlot] && rpcAvailabilityMap[selectedTimeSlot].length > 0) {
+          const profId = rpcAvailabilityMap[selectedTimeSlot][0];
+          assignedProf = professionals.find(p => p.id === profId);
+        }
+        
+        if (assignedProf) {
+          finalProfId = assignedProf.id;
+          profSelect.value = finalProfId;
+        } else {
+          showToast({ title: 'Bloque ocupado', subtitle: 'Ningún profesional está libre en esa hora para la duración completa del servicio.', type: 'warning' });
+          timeChipsContainer.style.outline = '2px solid #ef4444';
+          timeChipsContainer.style.outlineOffset = '4px';
+          timeChipsContainer.style.borderRadius = 'var(--radius-sm)';
+          hasError = true;
+        }
+      } else {
+        const prof = professionals.find(p => p.id === finalProfId);
+        const isFree = rpcAvailabilityMap[selectedTimeSlot] && rpcAvailabilityMap[selectedTimeSlot].includes(finalProfId);
+        
+        if (prof && !isFree) {
+           showToast({ title: 'Bloque ocupado', subtitle: `El profesional seleccionado no está libre a las ${selectedTimeSlot} para realizar todos los servicios.`, type: 'warning' });
+           timeChipsContainer.style.outline = '2px solid #ef4444';
+           timeChipsContainer.style.outlineOffset = '4px';
+           timeChipsContainer.style.borderRadius = 'var(--radius-sm)';
+           hasError = true;
+        }
       }
     }
 

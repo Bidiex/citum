@@ -109,6 +109,55 @@ export async function descontarStockPorFactura(invoiceId, serviceIds) {
   }
 }
 
+export async function descontarStockPorVenta(invoiceId, products, businessId) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    const userId = user?.id;
+
+    await Promise.all(products.map(async (product) => {
+      // 1. Registrar movimiento
+      await supabase.from('inventory_movements').insert({
+        business_id: businessId,
+        product_id: product.id,
+        type: 'descuento_venta',
+        quantity: product.qty,
+        reference_id: invoiceId,
+        notes: `Venta directa — ${product.name} x${product.qty}`,
+        created_by: userId
+      });
+
+      // 2. Descontar stock
+      const { data: prod } = await supabase
+        .from('inventory_products')
+        .select('stock_current, stock_minimum')
+        .eq('id', product.id)
+        .single();
+
+      if (prod) {
+        const newStock = Math.max(0, prod.stock_current - product.qty);
+        await supabase
+          .from('inventory_products')
+          .update({ stock_current: newStock })
+          .eq('id', product.id);
+
+        // 3. Alerta de stock mínimo
+        if (newStock <= prod.stock_minimum) {
+          await supabase.from('stock_alerts').insert({
+            business_id: businessId,
+            product_id: product.id,
+            stock_at_trigger: newStock,
+            is_read: false
+          });
+        }
+      }
+    }));
+    return { success: true };
+  } catch (err) {
+    console.error('[descontarStockPorVenta]', err);
+    return { success: false, error: err.message };
+  }
+}
+
 /**
  * Formatea el stock según el tipo de unidad del producto.
  */
