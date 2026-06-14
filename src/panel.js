@@ -8,6 +8,7 @@ import {
 import { auth } from './core/auth.js';
 import { supabase } from './core/supabase.js';
 import { initAiAssistant } from './components/ai-assistant.js';
+import { isPlanExpired, isInTrial, trialDaysLeft, getActivePlan, can, PLAN_DEFINITIONS } from './core/plans.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
   // Inicializar Iconos Lucide
@@ -20,6 +21,76 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (businesses.length === 0) {
     window.location.replace('/onboarding.html');
     return;
+  }
+
+  // --------------------------------------------------------
+  // Guard de plan vencido y Banner de Trial
+  // --------------------------------------------------------
+  const container = document.getElementById('main-content');
+  
+  if (isPlanExpired()) {
+    const showExpiredPlanScreen = async (container) => {
+      const { initWompiPayment } = await import('./core/payments.js');
+      
+      let plansCardsHtml = '';
+      Object.values(PLAN_DEFINITIONS).forEach(plan => {
+        plansCardsHtml += `
+          <div style="border: 1px solid var(--border-soft); padding: 1.5rem; border-radius: 12px; flex: 1; min-width: 250px;">
+            <h3 style="color: ${plan.badge_color}; margin-bottom: 0.5rem;">${plan.name}</h3>
+            <div style="font-size: 1.5rem; font-weight: bold; margin-bottom: 1rem;">
+              $${Number(plan.price_cop).toLocaleString('es-CO')}/mes
+            </div>
+            <button class="btn btn-primary btn-activate-plan" data-plan-id="${plan.id}" style="width: 100%; background: ${plan.badge_color}; border: none;">
+              Activar ${plan.name}
+            </button>
+          </div>
+        `;
+      });
+
+      container.innerHTML = `
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 80vh; text-align: center; padding: 2rem;">
+          <div style="font-size: 3rem; margin-bottom: 1rem;">⏱</div>
+          <h1 style="margin-bottom: 0.5rem;">Tu acceso ha vencido</h1>
+          <p style="color: var(--text-secondary); margin-bottom: 2rem; max-width: 500px;">
+            Para seguir gestionando tu negocio con Citum, por favor activa una suscripción. Elige el plan que mejor se adapte a tus necesidades.
+          </p>
+          <div style="display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center; width: 100%; max-width: 900px;">
+            ${plansCardsHtml}
+          </div>
+        </div>
+      `;
+
+      container.querySelectorAll('.btn-activate-plan').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const planId = e.target.getAttribute('data-plan-id');
+          initWompiPayment(planId);
+        });
+      });
+    };
+
+    showExpiredPlanScreen(container);
+    return; // Detiene la carga del panel normal
+  }
+
+  if (isInTrial()) {
+    const daysLeft = trialDaysLeft();
+    const isWarning = daysLeft <= 2;
+    const bannerBg = isWarning ? 'rgba(239, 68, 68, 0.1)' : 'var(--bg-secondary)';
+    const bannerColor = isWarning ? '#ef4444' : 'var(--text-primary)';
+    
+    const banner = document.createElement('div');
+    banner.className = 'trial-banner';
+    banner.style.cssText = `position: sticky; top: 0; z-index: 200; background: ${bannerBg}; color: ${bannerColor}; padding: 0.75rem 1rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-soft); font-size: 0.875rem;`;
+    banner.innerHTML = `
+      <span>⏱ Tu prueba gratuita vence en <strong>${daysLeft} días</strong> — Activa tu plan para no perder el acceso.</span>
+      <button id="trial-upgrade-btn" class="btn btn-primary" style="height: 32px; font-size: 12px; padding-inline: var(--space-3);">Activar plan</button>
+    `;
+    document.body.prepend(banner);
+
+    banner.querySelector('#trial-upgrade-btn').addEventListener('click', async () => {
+      const { initWompiPayment } = await import('./core/payments.js');
+      initWompiPayment('pro');
+    });
   }
 
   // 1. Selector de Negocios (Dropdown)
@@ -166,6 +237,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   const mobileSidebarToggle = document.getElementById('mobile-sidebar-toggle');
   const sectionTitle = document.getElementById('active-section-title');
 
+  // Bloqueo visual en el sidebar para plan Esencial
+  if (!can('inventory')) {
+    const invItem = Array.from(navItems).find(n => n.getAttribute('data-section') === 'inventario');
+    if (invItem) {
+      const badge = document.createElement('span');
+      badge.className = 'plan-crown-badge';
+      badge.innerHTML = '👑 Pro';
+      badge.style.cssText = 'margin-left: auto; font-size: 0.65rem; background: rgba(139, 92, 246, 0.15); color: #8b5cf6; padding: 2px 6px; border-radius: 12px; font-weight: 700; display: flex; align-items: center; gap: 4px;';
+      invItem.appendChild(badge);
+    }
+  }
+
   // Toggle del Sidebar móvil
   if (mobileSidebarToggle && mobileSidebar) {
     mobileSidebarToggle.addEventListener('click', (e) => {
@@ -248,8 +331,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Enlazar clics de navegación
   navItems.forEach(item => {
-    item.addEventListener('click', (e) => {
+    item.addEventListener('click', async (e) => {
       e.preventDefault();
+      const section = item.getAttribute('data-section');
+
+      // Bloqueo de acceso al Inventario
+      if (section === 'inventario' && !can('inventory')) {
+        const { openUpgradeModal } = await import('./components/upgrade-modal.js');
+        const { initWompiPayment } = await import('./core/payments.js');
+        
+        openUpgradeModal({
+          feature: 'inventory',
+          context: 'Módulo de Inventario',
+          onUpgrade: (plan) => initWompiPayment(plan.id)
+        });
+        return; // Detiene la navegación
+      }
       
       // Cambiar clase activa
       navItems.forEach(nav => nav.classList.remove('active'));
@@ -261,7 +358,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
 
       // Navegar
-      const section = item.getAttribute('data-section');
       navigate(section);
     });
   });
