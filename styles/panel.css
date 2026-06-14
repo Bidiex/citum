@@ -381,39 +381,53 @@ body {
 /* Mobile global fixes */
 @media (max-width: 768px) {
   .panel-header {
-    padding-inline: var(--space-4);
+    padding-inline: var(--space-3);
   }
   .header-left {
-    gap: var(--space-3);
+    gap: var(--space-2);
   }
   .section-title-active {
-    font-size: var(--text-xl);
+    font-size: var(--text-lg);
   }
+  /* En móviles, solo mostrar el icono del negocio para ahorrar espacio */
   #current-business-name {
-    max-width: 100px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    display: inline-block;
-    vertical-align: middle;
+    display: none;
   }
-  .profile-name {
+  .selector-btn {
+    padding: var(--space-2); /* Menos padding lateral */
+  }
+  /* Ocultar nombre y badge del perfil, dejar solo el avatar */
+  .profile-name, .profile-badge {
     display: none;
   }
   .profile-info {
-    padding: var(--space-1) var(--space-2);
+    padding: 0;
+    border: none;
+    background: transparent;
+  }
+  .header-right {
+    gap: var(--space-2);
   }
   
+  /* Arreglo para la cabecera de las vistas (p. ej. Agenda, Clientes) */
   .view-header {
     flex-direction: column;
-    align-items: stretch;
+    align-items: flex-start;
+    gap: var(--space-4);
   }
   .view-actions {
-    justify-content: stretch;
-  }
-  .view-actions .btn {
     width: 100%;
-    justify-content: center;
+    display: flex;
+    flex-wrap: nowrap;
+    gap: var(--space-2);
+  }
+  .view-actions .btn-primary {
+    flex-grow: 1;
+    width: auto;
+  }
+  .view-actions .btn-secondary {
+    flex-grow: 0;
+    width: auto;
   }
 
   .crm-table-header-row {
@@ -424,6 +438,7 @@ body {
   }
   .crm-search-input-wrapper {
     max-width: none;
+    width: 100%;
   }
   .crm-table th, .crm-table td {
     padding: 12px 14px;

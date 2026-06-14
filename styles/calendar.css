@@ -712,14 +712,27 @@
     gap: var(--space-3);
     padding: var(--space-3) var(--space-4);
   }
-  .cal-title {
-    text-align: left;
-    margin-bottom: var(--space-1);
-    font-size: var(--text-base);
-  }
   .cal-nav-group {
+    flex-wrap: wrap;
     justify-content: space-between;
     width: 100%;
+  }
+  .cal-title {
+    width: 100%;
+    order: -1; /* Poner el título arriba de los botones de navegación */
+    text-align: center;
+    margin-bottom: var(--space-2);
+    font-size: var(--text-base);
+  }
+  .cal-view-toggle {
+    width: 100%;
+  }
+  .cal-toggle-btn {
+    flex: 1;
+  }
+  .cal-btn-today {
+    flex: 1;
+    text-align: center;
   }
   .apt-detail-modal {
     max-width: calc(100% - var(--space-4));
